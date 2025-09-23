@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+html { -webkit-text-size-adjust: 100%; }
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --navy:#0b1f2a; --ocean:#0e7490; --seafoam:#e0f2f1; --sand:#f4ede4; --coral:#f97316;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;   /* WebKit */
+  -moz-osx-font-smoothing: grayscale;    /* macOS Firefox */
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
