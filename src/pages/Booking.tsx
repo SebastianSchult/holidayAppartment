@@ -6,7 +6,7 @@ import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import { de } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
-import { listBlockedNights } from "../lib/db";
+import { listBlockedNights, listOverlapBookings } from "../lib/db";
 
 export default function Booking() {
   const [loading, setLoading] = useState(true);
@@ -34,6 +34,7 @@ export default function Booking() {
     to: plus3,
   });
   const [blocked, setBlocked] = useState<Date[]>([]);
+  const [requestedDisabled, setRequestedDisabled] = useState<Date[]>([]);
   const MIN_NIGHTS = 2;
 
   // Kontaktfelder
@@ -85,10 +86,21 @@ export default function Booking() {
   useEffect(() => {
     (async () => {
       if (!propertyId) return;
-      const fromISO = new Date().toISOString().slice(0,10);
-      const toISO = new Date(new Date().setFullYear(new Date().getFullYear()+1)).toISOString().slice(0,10);
+      const fromISO = new Date().toISOString().slice(0, 10);
+      const toISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
       const dates = await listBlockedNights(propertyId, fromISO, toISO);
-      setBlocked(dates.map(d => new Date(d+"T00:00:00")));
+      setBlocked(dates.map(d => new Date(d + "T00:00:00")));
+
+      const overlaps = await listOverlapBookings(propertyId, fromISO, toISO);
+      const tmp: Date[] = [];
+      overlaps.forEach(b => {
+        const s = new Date(b.startDate + "T00:00:00");
+        const e = new Date(b.endDate + "T00:00:00");
+        for (let d = new Date(s); d < e; d.setDate(d.getDate() + 1)) {
+          tmp.push(new Date(d));
+        }
+      });
+      setRequestedDisabled(tmp);
     })();
   }, [propertyId]);
 
@@ -136,9 +148,17 @@ export default function Booking() {
       if (!propertyId || nights <= 0 || nights < MIN_NIGHTS) { setAvail("idle"); return; }
       setAvail("checking");
       try {
-        const ok = await isRangeAvailable(propertyId, start, end);
+        const [overlaps, ok] = await Promise.all([
+          listOverlapBookings(propertyId, start, end),
+          isRangeAvailable(propertyId, start, end),
+        ]);
         if (!alive) return;
-        setAvail(ok ? "available" : "unavailable");
+        // Wenn es Überschneidungen (requested/approved) gibt ODER Inventory blockiert ist → nicht verfügbar
+        if (overlaps.length > 0 || !ok) {
+          setAvail("unavailable");
+        } else {
+          setAvail("available");
+        }
       } catch {
         if (!alive) return;
         setAvail("unavailable");
@@ -225,7 +245,7 @@ export default function Booking() {
               fromDate={new Date()}
               selected={range}
               onSelect={setRange}
-              disabled={[{ before: new Date() }, ...blocked]}
+              disabled={[{ before: new Date() }, ...blocked, ...requestedDisabled]}
             />
           </Field>
         </div>

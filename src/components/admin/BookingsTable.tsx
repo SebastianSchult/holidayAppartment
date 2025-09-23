@@ -12,11 +12,12 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
   );
   const [busy, setBusy] = useState<false | "approve" | "decline">(false);
 
-  const [notice, setNotice] = useState<null | { type: "success" | "error"; text: string }>(null);
-  function flash(type: "success" | "error", text: string) {
-    setNotice({ type, text });
-    setTimeout(() => setNotice(null), 2500);
+  const [notice, setNotice] = useState<null | { type: "success" | "error"; text: string; actionText?: string; onAction?: () => void }>(null);
+  function flash(type: "success" | "error", text: string, actionText?: string, onAction?: () => void) {
+    setNotice({ type, text, actionText, onAction });
+    setTimeout(() => setNotice(null), 3000);
   }
+  const [confirmState, setConfirmState] = useState<null | { kind: "cancel" | "delete"; booking: Booking & { id: string } }>(null);
 
   useEffect(() => {
     (async () => {
@@ -95,20 +96,27 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
   }
 
   async function handleCancel(b: Booking & { id: string }) {
-    const doCancel = onCancel ?? cancelBooking;
-    if (!confirm("Buchung wirklich stornieren?")) return;
+    // This will be executed after user confirms
     try {
-      await doCancel(b);
+      await (onCancel ?? cancelBooking)(b);
       setRows(prev => prev.map(x => x.id === b.id ? { ...x, status: "cancelled" } : x));
       setSelected(s => (s && s.id === b.id ? { ...s, status: "cancelled" } : s));
-      flash("success", "Buchung storniert.");
+      // Offer Undo: set back to approved and re-block nights
+      flash("success", "Buchung storniert.", "Rückgängig", async () => {
+        try {
+          await approveBooking(b);
+          setRows(prev => prev.map(x => x.id === b.id ? { ...x, status: "approved" } : x));
+          setSelected(s => (s && s.id === b.id ? { ...s, status: "approved" } : s));
+        } catch (e) {
+          flash("error", e instanceof Error ? e.message : "Rückgängig fehlgeschlagen.");
+        }
+      });
     } catch (e) {
       flash("error", e instanceof Error ? e.message : "Stornierung fehlgeschlagen.");
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Eintrag endgültig löschen? Dies kann nicht rückgängig gemacht werden.")) return;
     try {
       await deleteBooking(id);
       setRows(prev => prev.filter(x => x.id !== id));
@@ -204,7 +212,7 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
                     ) : isApproved(b.status) ? (
                       <>
                         <button
-                          onClick={() => handleCancel(b)}
+                          onClick={() => setConfirmState({ kind: "cancel", booking: b })}
                           className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:opacity-90"
                         >
                           Stornieren
@@ -213,7 +221,7 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
                     ) : (isDeclined(b.status) || isCancelled(b.status)) ? (
                       <>
                         <button
-                          onClick={() => handleDelete(b.id)}
+                          onClick={() => setConfirmState({ kind: "delete", booking: b })}
                           className="rounded bg-slate-700 px-3 py-1.5 text-sm text-white hover:opacity-90"
                         >
                           Löschen
@@ -319,14 +327,14 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
                 </>
               ) : isApproved(selected.status) ? (
                 <button
-                  onClick={() => handleCancel(selected)}
+                  onClick={() => setConfirmState({ kind: "cancel", booking: selected })}
                   className="rounded bg-red-600 px-3 py-1.5 text-white hover:opacity-90"
                 >
                   Stornieren
                 </button>
               ) : isDeclined(selected.status) || isCancelled(selected.status) ? (
                 <button
-                  onClick={() => handleDelete(selected.id)}
+                  onClick={() => setConfirmState({ kind: "delete", booking: selected })}
                   className="rounded bg-slate-700 px-3 py-1.5 text-white hover:opacity-90"
                 >
                   Löschen
@@ -338,10 +346,67 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
           </div>
         </LightModal>
       )}
+      {confirmState && (
+        <LightModal
+          onClose={() => setConfirmState(null)}
+          title={confirmState.kind === "cancel" ? "Buchung stornieren" : "Eintrag löschen"}
+        >
+          <p className="text-sm text-slate-700">
+            {confirmState.kind === "cancel"
+              ? "Möchtest du diese Buchung wirklich stornieren?"
+              : "Möchtest du diesen Eintrag endgültig löschen? Dies kann nicht rückgängig gemacht werden."}
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              onClick={() => setConfirmState(null)}
+              className="rounded border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50"
+            >
+              Abbrechen
+            </button>
+            {confirmState.kind === "cancel" ? (
+              <button
+                onClick={() => {
+                  const b = confirmState.booking;
+                  setConfirmState(null);
+                  handleCancel(b);
+                }}
+                className="rounded bg-red-600 px-3 py-1.5 text-white hover:bg-red-700"
+              >
+                Ja, stornieren
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const id = confirmState.booking.id;
+                  setConfirmState(null);
+                  handleDelete(id);
+                }}
+                className="rounded bg-slate-700 px-3 py-1.5 text-white hover:bg-slate-800"
+              >
+                Ja, löschen
+              </button>
+            )}
+          </div>
+        </LightModal>
+      )}
       {notice && (
-        <div className="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-2 shadow-lg text-white"
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg px-4 py-2 shadow-lg text-white"
              style={{ backgroundColor: notice.type === 'success' ? '#16a34a' : '#dc2626' }}>
-          {notice.text}
+          <span>{notice.text}</span>
+          {notice.actionText && notice.onAction && (
+            <button
+              onClick={() => {
+                if (notice.onAction) {
+                  const fn = notice.onAction;
+                  setNotice(null);
+                  fn();
+                }
+              }}
+              className="rounded bg-white/20 px-2 py-1 text-sm hover:bg-white/30"
+            >
+              {notice.actionText}
+            </button>
+          )}
         </div>
       )}
     </>

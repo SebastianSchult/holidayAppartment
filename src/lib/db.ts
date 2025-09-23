@@ -115,12 +115,19 @@ export async function isAdmin(uid: string): Promise<boolean> {
  *  Inventory & Approval Flow
  *  --------------------------- */
 
+function fmtLocalISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function eachNight(startISO: string, endISO: string): string[] {
   const start = new Date(startISO + "T00:00:00");
   const end = new Date(endISO + "T00:00:00");
   const out: string[] = [];
   for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-    out.push(d.toISOString().slice(0, 10));
+    out.push(fmtLocalISO(d));
   }
   return out;
 }
@@ -207,6 +214,21 @@ export async function listApprovedBookings(
   return approved.filter((b) => b.startDate < toISO && b.endDate > fromISO);
 }
 
+/** Liefert Buchungen (approved ODER requested), die sich mit einem Zeitraum überschneiden. */
+export async function listOverlapBookings(
+  propertyId: string,
+  fromISO: string,
+  toISO: string
+): Promise<(Booking & { id: string })[]> {
+  const all = await listBookings(propertyId);
+  return all.filter(
+    (b) =>
+      (b.status === "approved" || b.status === "requested") &&
+      b.startDate < toISO &&
+      b.endDate > fromISO
+  );
+}
+
 /** Gibt für eine Buchung alle geblockten Nächte frei (sicherheitsbewusst). */
 export async function freeNightsForBooking(booking: Booking & { id: string }) {
   const days = eachNight(booking.startDate, booking.endDate);
@@ -236,4 +258,25 @@ export async function cancelBooking(booking: Booking & { id: string }) {
 /** Löscht eine Buchung vollständig (nur für Admin gedacht). */
 export async function deleteBooking(id: string) {
   await deleteDoc(doc(db, COL.bookings, id));
+}
+
+/** ---------------------------
+ *  Inventory Maintenance
+ *  --------------------------- */
+
+/** Löscht alle Inventory-Nächte im Bereich [fromISO, toISO). */
+export async function clearInventoryRange(propertyId: string, fromISO: string, toISO: string) {
+  const nightsCol = collection(db, COL.inventory, propertyId, "nights");
+  const qy = query(nightsCol, where("date", ">=", fromISO), where("date", "<", toISO));
+  const snap = await getDocs(qy);
+  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+}
+
+/** Bereinigt und baut die Nächte aus bestätigten Buchungen neu auf. */
+export async function rebuildInventoryFromApproved(propertyId: string, fromISO: string, toISO: string) {
+  await clearInventoryRange(propertyId, fromISO, toISO);
+  const approved = await listApprovedBookings(propertyId, fromISO, toISO);
+  for (const b of approved) {
+    await blockNightsForBooking(b.id, b.propertyId, b.startDate, b.endDate);
+  }
 }
