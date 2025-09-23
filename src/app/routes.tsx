@@ -1,11 +1,11 @@
-import { Routes, Route } from 'react-router-dom';
-import Home from '../pages/Home';
-import Gallery from '../pages/Gallery';
-import Prices from '../pages/Prices';
-import Booking from '../pages/Booking';
-import AdminDashboard from '../pages/AdminDashboard';
-import Login from '../pages/Login';
-import { ProtectedRoute } from '../components/ProtectedRoute';
+import { Routes, Route } from "react-router-dom";
+import Home from "../pages/Home";
+import Gallery from "../pages/Gallery";
+import Prices from "../pages/Prices";
+import Booking from "../pages/Booking";
+import AdminDashboard from "../pages/AdminDashboard";
+import Login from "../pages/Login";
+import RequireAdmin from "../components/admin/auth/RequireAdmin";
 
 export function AppRoutes() {
   return (
@@ -18,9 +18,9 @@ export function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute>
+          <RequireAdmin>
             <AdminDashboard />
-          </ProtectedRoute>
+          </RequireAdmin>
         }
       />
     </Routes>

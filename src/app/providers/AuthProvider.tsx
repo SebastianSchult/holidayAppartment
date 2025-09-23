@@ -21,10 +21,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isAdmin, setIsAdmin] = React.useState(false);
+  const [roleLoading, setRoleLoading] = React.useState(false);
 
   React.useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      if (u) {
+        setRoleLoading(true);
+      } else {
+        setIsAdmin(false);
+        setRoleLoading(false);
+      }
       setLoading(false);
     });
     return () => unsub();
@@ -36,12 +43,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsub = onSnapshot(ref, (snap) => {
       const data = snap.data() as RoleDoc | undefined;
       setIsAdmin(!!(data && data.admin === true));
-    }, () => setIsAdmin(false));
+      setRoleLoading(false);
+    }, () => {
+      setIsAdmin(false);
+      setRoleLoading(false);
+    });
     return () => unsub();
   }, [user]);
 
+  const ctxValue = React.useMemo(() => ({
+    user,
+    loading: loading || roleLoading,
+    isAdmin,
+  }), [user, loading, roleLoading, isAdmin]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin }}>
+    <AuthContext.Provider value={ctxValue}>
       {children}
     </AuthContext.Provider>
   );

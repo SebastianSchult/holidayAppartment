@@ -9,6 +9,7 @@ export const COL = {
   inventory: "inventory",
   users: "users",
   taxBands: "taxBands",
+  roles: "roles",
 } as const;
 
 /** ISO-Datum (YYYY-MM-DD) */
@@ -131,3 +132,10 @@ export const TouristTaxBandSchema = z.object({
   updatedAt: z.date().default(() => new Date()),
 });
 export type TouristTaxBand = z.infer<typeof TouristTaxBandSchema>;
+
+/** Rollen-Dokument für Benutzer (roles/{uid}) */
+export const RoleSchema = z.object({
+  id: z.string().optional(), // = uid
+  admin: z.boolean().default(false),
+});
+export type Role = z.infer<typeof RoleSchema>;

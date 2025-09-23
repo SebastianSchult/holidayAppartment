@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { getFirstProperty, listSeasons, listTaxBands } from "../lib/db";
+import { getFirstProperty, listSeasons, listTaxBands, createBookingRequest, isRangeAvailable } from "../lib/db";
 import type { Property, Season, TouristTaxBand } from "../lib/schemas";
 import { priceForStay, touristTaxForStay } from "../lib/pricing";
+import { DayPicker } from "react-day-picker";
+import type { DateRange } from "react-day-picker";
+import { de } from "date-fns/locale";
+import "react-day-picker/dist/style.css";
+import { listBlockedNights } from "../lib/db";
 
 export default function Booking() {
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,26 @@ export default function Booking() {
   const [end, setEnd] = useState<string>(plus3.toISOString().slice(0, 10));
   const [adults, setAdults] = useState<number>(2); // Kurtaxe-pflichtig (>=16)
   const [children, setChildren] = useState<number>(0); // 0–15 Jahre, keine Kurtaxe
+
+  const [range, setRange] = useState<DateRange | undefined>({
+    from: today,
+    to: plus3,
+  });
+  const [blocked, setBlocked] = useState<Date[]>([]);
+  const MIN_NIGHTS = 2;
+
+  // Kontaktfelder
+  const [name, setName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+
+  // Submit-Status
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+
+  // Verfügbarkeits-Prüfung
+  const [avail, setAvail] = useState<"idle" | "checking" | "available" | "unavailable">("idle");
 
   useEffect(() => {
     (async () => {
@@ -51,6 +76,21 @@ export default function Booking() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (range?.from) setStart(range.from.toISOString().slice(0, 10));
+    if (range?.to) setEnd(range.to.toISOString().slice(0, 10));
+  }, [range]);
+
+  useEffect(() => {
+    (async () => {
+      if (!propertyId) return;
+      const fromISO = new Date().toISOString().slice(0,10);
+      const toISO = new Date(new Date().setFullYear(new Date().getFullYear()+1)).toISOString().slice(0,10);
+      const dates = await listBlockedNights(propertyId, fromISO, toISO);
+      setBlocked(dates.map(d => new Date(d+"T00:00:00")));
+    })();
+  }, [propertyId]);
 
   const fmt = useMemo(() => new Intl.NumberFormat("de-DE", { style: "currency", currency }), [currency]);
 
@@ -90,6 +130,81 @@ export default function Booking() {
     return Math.max(0, diff);
   }, [start, end]);
 
+  useEffect(() => {
+    let alive = true;
+    async function run() {
+      if (!propertyId || nights <= 0 || nights < MIN_NIGHTS) { setAvail("idle"); return; }
+      setAvail("checking");
+      try {
+        const ok = await isRangeAvailable(propertyId, start, end);
+        if (!alive) return;
+        setAvail(ok ? "available" : "unavailable");
+      } catch {
+        if (!alive) return;
+        setAvail("unavailable");
+      }
+    }
+    const t = setTimeout(run, 300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [propertyId, start, end, nights]);
+
+  async function submitRequest(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    if (!propertyId || !calc) return;
+    setSubmitting(true);
+    setSubmitMsg(null);
+    try {
+      if (!name.trim() || !email.trim()) {
+        setSubmitMsg("Bitte Name und E-Mail angeben.");
+        return;
+      }
+      await createBookingRequest({
+        propertyId,
+        startDate: start,
+        endDate: end,
+        adults,
+        children,
+        status: "requested",
+        contact: { name: name.trim(), email: email.trim(), phone: phone.trim() },
+        message: message.trim(),
+        summary: {
+          nights,
+          nightlyTotal: calc.base.nightsTotal,
+          cleaningFee: calc.base.cleaningFee,
+          touristTax: calc.tax.total,
+          grandTotal: calc.grandTotal,
+          currency,
+        },
+      });
+      setSubmitMsg("Vielen Dank! Deine Anfrage wurde übermittelt. Wir melden uns zeitnah.");
+    } catch (err) {
+      setSubmitMsg(err instanceof Error ? err.message : "Anfrage konnte nicht gesendet werden.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const nightlyBreakdown = useMemo(() => {
+    if (!propertyId) return [] as { date: string; label: string; rate: number; tax: number; subtotal: number }[];
+    const out: { date: string; label: string; rate: number; tax: number; subtotal: number }[] = [];
+    const startDate = new Date(start + "T00:00:00");
+    const endDate = new Date(end + "T00:00:00");
+    for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      const next = new Date(d); next.setDate(next.getDate() + 1);
+      const nextIso = next.toISOString().slice(0, 10);
+      const season = seasons.find((s) => iso >= s.startDate && iso <= s.endDate);
+      const label = season?.name || "Standard";
+      const rate = season?.nightlyRate ?? defaultRate;
+      // Kurtaxe für genau diese eine Nacht berechnen (nur Erwachsene)
+      const taxObj = touristTaxForStay(taxBands, iso, nextIso, adults);
+      const tax = taxObj.total;
+      const subtotal = rate + tax;
+      out.push({ date: iso, label, rate, tax, subtotal });
+    }
+    return out;
+  }, [propertyId, start, end, seasons, defaultRate, taxBands, adults]);
+
   return (
     <section className="space-y-6">
       <header className="text-center">
@@ -101,18 +216,43 @@ export default function Booking() {
 
       {/* Formular */}
       <form className="grid gap-4 md:grid-cols-4">
-        <Field label="Anreise">
-          <input className="input" type="date" value={start} onChange={(e)=>setStart(e.target.value)} />
-        </Field>
-        <Field label="Abreise">
-          <input className="input" type="date" value={end} onChange={(e)=>setEnd(e.target.value)} />
-        </Field>
+        <div className="md:col-span-4">
+          <Field label="Zeitraum wählen">
+            <DayPicker
+              mode="range"
+              locale={de}
+              numberOfMonths={2}
+              fromDate={new Date()}
+              selected={range}
+              onSelect={setRange}
+              disabled={[{ before: new Date() }, ...blocked]}
+            />
+          </Field>
+        </div>
         <Field label="Erwachsene (≥16)">
           <input className="input" type="number" min={0} value={adults} onChange={(e)=>setAdults(Number(e.target.value))} />
         </Field>
         <Field label="Kinder (0–15)">
           <input className="input" type="number" min={0} value={children} onChange={(e)=>setChildren(Number(e.target.value))} />
         </Field>
+
+        {/* Kontakt */}
+        <div className="md:col-span-4 grid gap-4 md:grid-cols-3">
+          <Field label="Name">
+            <input className="input" value={name} onChange={(e)=>setName(e.target.value)} placeholder="Vor- und Nachname" />
+          </Field>
+          <Field label="E-Mail">
+            <input className="input" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@example.com" />
+          </Field>
+          <Field label="Telefon (optional)">
+            <input className="input" value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="+49 …" />
+          </Field>
+          <div className="md:col-span-3">
+            <Field label="Nachricht (optional)">
+              <textarea className="input" rows={3} value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="z.B. Ankunftszeit, Fragen …" />
+            </Field>
+          </div>
+        </div>
       </form>
 
       {/* Ergebnis */}
@@ -144,16 +284,78 @@ export default function Booking() {
                 <li>Kurtaxe je Nacht pro zahlender Person (≥16) gemäß Kurtaxe-Band.</li>
               </ul>
             </div>
+            <div className="md:col-span-2">
+              <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 open:bg-white">
+                <summary className="cursor-pointer select-none font-medium">Preis je Nacht anzeigen</summary>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-slate-600">
+                        <th className="py-1 pr-3">Datum</th>
+                        <th className="py-1 pr-3">Tarif</th>
+                        <th className="py-1 pr-3 text-right">Preis / Nacht</th>
+                        <th className="py-1 pr-3 text-right">Kurtaxe / Nacht</th>
+                        <th className="py-1 pr-3 text-right">Summe / Nacht</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {nightlyBreakdown.map((n) => (
+                        <tr key={n.date} className="border-t border-slate-200">
+                          <td className="py-1 pr-3">{new Date(n.date+"T00:00:00").toLocaleDateString("de-DE")}</td>
+                          <td className="py-1 pr-3">{n.label}</td>
+                          <td className="py-1 pr-3 text-right">{fmt.format(n.rate)}</td>
+                          <td className="py-1 pr-3 text-right">{fmt.format(n.tax)}</td>
+                          <td className="py-1 pr-3 text-right">{fmt.format(n.subtotal)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-slate-300 font-semibold">
+                        <td className="py-1 pr-3" colSpan={2}>Summe Übernachtungen</td>
+                        <td className="py-1 pr-3 text-right">{fmt.format(calc.base.nightsTotal)}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-1 pr-3" colSpan={2}>Endreinigung</td>
+                        <td className="py-1 pr-3 text-right">{fmt.format(calc.base.cleaningFee)}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-1 pr-3" colSpan={2}>Kurtaxe (gesamt)</td>
+                        <td className="py-1 pr-3 text-right">{fmt.format(calc.tax.total)}</td>
+                      </tr>
+                      <tr className="border-t-2 border-slate-300 font-semibold">
+                        <td className="py-1 pr-3" colSpan={2}>Gesamt</td>
+                        <td className="py-1 pr-3 text-right">{fmt.format(calc.grandTotal)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </div>
           </div>
         ) : (
           <p className="text-slate-600">Preis konnte nicht berechnet werden.</p>
         )}
       </div>
+      {avail === "checking" && (
+        <p className="text-sm text-slate-500">Verfügbarkeit wird geprüft …</p>
+      )}
+      {avail === "available" && (
+        <p className="text-sm text-green-700">Zeitraum ist aktuell verfügbar.</p>
+      )}
+      {avail === "unavailable" && (
+        <p className="text-sm text-red-700">Zeitraum ist leider bereits belegt.</p>
+      )}
+      {nights > 0 && nights < MIN_NIGHTS && (
+        <p className="text-sm text-amber-700">Mindestaufenthalt: {MIN_NIGHTS} Nächte.</p>
+      )}
 
-      <div className="text-right">
-        <button className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90" disabled={!calc || nights <= 0}>
-          Weiter zur Anfrage (kommt gleich)
+      <div className="text-right space-y-2">
+        <button
+          onClick={submitRequest}
+          className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60"
+          disabled={!calc || nights <= 0 || nights < MIN_NIGHTS || submitting || avail !== "available"}
+        >
+          {submitting ? "Sende …" : "Anfrage senden"}
         </button>
+        {submitMsg && <p className="text-sm text-slate-600">{submitMsg}</p>}
       </div>
     </section>
   );
