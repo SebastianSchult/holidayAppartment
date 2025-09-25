@@ -25,13 +25,11 @@ dist-ssr
 .env
 .env.production
 
+
 # Secrets nicht committen
-sa-keys/
+sa-keys
 *.json
 !package.json
-sa-keys/
-.env*
-backend-php/vendor/
-sa-keys/
-.env*
-backend-php/vendor/
+
+backend-php
+
