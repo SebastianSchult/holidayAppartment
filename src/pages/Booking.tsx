@@ -8,6 +8,14 @@ import { de } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
 import { listBlockedNights } from "../lib/db";
 
+// Format a JS Date to YYYY-MM-DD in **local** time (no UTC shift)
+function formatLocalISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export default function Booking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +32,8 @@ export default function Booking() {
   // Form-States
   const today = new Date();
   const plus3 = new Date(today.getTime() + 3 * 86400000);
-  const [start, setStart] = useState<string>(today.toISOString().slice(0, 10));
-  const [end, setEnd] = useState<string>(plus3.toISOString().slice(0, 10));
+  const [start, setStart] = useState<string>(formatLocalISO(today));
+  const [end, setEnd] = useState<string>(formatLocalISO(plus3));
   const [adults, setAdults] = useState<number>(2); // Kurtaxe-pflichtig (>=16)
   const [children, setChildren] = useState<number>(0); // 0–15 Jahre, keine Kurtaxe
 
@@ -85,8 +93,8 @@ export default function Booking() {
   }, []);
 
   useEffect(() => {
-    if (range?.from) setStart(range.from.toISOString().slice(0, 10));
-    if (range?.to) setEnd(range.to.toISOString().slice(0, 10));
+    if (range?.from) setStart(formatLocalISO(range.from));
+    if (range?.to) setEnd(formatLocalISO(range.to));
   }, [range]);
 
   useEffect(() => {
@@ -98,7 +106,8 @@ export default function Booking() {
         const toISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
         const dates = await listBlockedNights(propertyId, fromISO, toISO);
         console.debug("[booking] listBlockedNights ✓", dates.length);
-        setBlocked(dates.map(d => new Date(d + "T00:00:00")));
+        // IMPORTANT: use local noon to avoid DST/UTC edge cases where the day shifts
+        setBlocked(dates.map(d => new Date(d + "T12:00:00")));
 
         // Öffentliche Nutzer lesen keine Buchungen → keine zusätzlichen deaktivierten Tage
         setRequestedDisabled([]);
@@ -142,8 +151,8 @@ export default function Booking() {
   }, [propertyId, propertyName, currency, defaultRate, cleaningFee, seasons, taxBands, start, end, adults]);
 
   const nights = useMemo(() => {
-    const a = new Date(start);
-    const b = new Date(end);
+    const a = new Date(start + "T12:00:00");
+    const b = new Date(end + "T12:00:00");
     const diff = Math.round((b.getTime() - a.getTime()) / 86400000);
     return Math.max(0, diff);
   }, [start, end]);
