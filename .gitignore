@@ -32,3 +32,6 @@ sa-keys/
 sa-keys/
 .env*
 backend-php/vendor/
+sa-keys/
+.env*
+backend-php/vendor/
