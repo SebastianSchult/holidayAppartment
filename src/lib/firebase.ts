@@ -1,7 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
-import type { FirestoreSettings } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { initializeFirestore, connectFirestoreEmulator, setLogLevel, type FirestoreSettings } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -27,6 +26,35 @@ const firestoreSettings: FirestoreSettings = {
   experimentalForceLongPolling: true,
 };
 
+// Optional verbose Firestore logging for diagnosing permission issues
+if (import.meta.env.VITE_FIRESTORE_DEBUG === '1') {
+  try {
+    setLogLevel('debug');
+    console.info('[FS DEBUG] Firestore log level: debug');
+  } catch (e) {
+    console.warn('[FS DEBUG] setLogLevel failed:', e);
+  }
+}
+
 export const db = initializeFirestore(app, firestoreSettings);
+
+// Connect to emulators only in dev when explicitly enabled
+if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === '1') {
+  try {
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    console.info('[EMU] Firestore → 127.0.0.1:8080');
+  } catch (e) {
+    console.warn('[EMU] Firestore emulator connect failed:', e);
+  }
+  // Optional: Auth emulator (enable via VITE_AUTH_EMULATOR=1)
+  if (import.meta.env.VITE_AUTH_EMULATOR === '1') {
+    try {
+      connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+      console.info('[EMU] Auth → 127.0.0.1:9099');
+    } catch (e) {
+      console.warn('[EMU] Auth emulator connect failed:', e);
+    }
+  }
+}
 
 export const storage = getStorage(app);

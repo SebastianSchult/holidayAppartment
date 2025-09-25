@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { getFirstProperty, listSeasons, listTaxBands, createBookingRequest, isRangeAvailable } from "../lib/db";
+import { listSeasons, listTaxBands, createBookingRequest, isRangeAvailable } from "../lib/db";
 import type { Property, Season, TouristTaxBand } from "../lib/schemas";
 import { priceForStay, touristTaxForStay } from "../lib/pricing";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import { de } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
-import { listBlockedNights, listOverlapBookings } from "../lib/db";
+import { listBlockedNights } from "../lib/db";
 
 export default function Booking() {
   const [loading, setLoading] = useState(true);
@@ -14,9 +14,9 @@ export default function Booking() {
 
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("Ferienwohnung");
-  const [currency, setCurrency] = useState<string>("EUR");
-  const [defaultRate, setDefaultRate] = useState<number>(0);
-  const [cleaningFee, setCleaningFee] = useState<number>(0);
+  const currency = "EUR" as const;
+  const defaultRate = 0;
+  const cleaningFee = 0;
 
   const [seasons, setSeasons] = useState<(Season & { id: string })[]>([]);
   const [taxBands, setTaxBands] = useState<(TouristTaxBand & { id: string })[]>([]);
@@ -55,22 +55,28 @@ export default function Booking() {
       setLoading(true);
       setError(null);
       try {
-        const p = await getFirstProperty();
-        if (!p) throw new Error("Es ist noch keine Unterkunft angelegt.");
-        setPropertyId(p.id);
-        setPropertyName(p.data.name || "Ferienwohnung");
-        setCurrency(p.data.currency || "EUR");
-        setDefaultRate(p.data.defaultNightlyRate || 0);
-        setCleaningFee(p.data.cleaningFee || 0);
+        console.debug("[booking] init – start");
+        const envId = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_DEFAULT_PROPERTY_ID;
+        if (!envId) throw new Error("Konfiguration fehlt: VITE_DEFAULT_PROPERTY_ID.");
 
-        const s = await listSeasons(p.id);
+        setPropertyId(envId);
+        setPropertyName("Ferienwohnung");
+
+        console.debug("[booking] listSeasons →", envId);
+        const s = await listSeasons(envId);
+        console.debug("[booking] listSeasons ✓", s.length);
         s.sort((a, b) => a.startDate.localeCompare(b.startDate));
         setSeasons(s);
 
-        const t = await listTaxBands(p.id);
+        console.debug("[booking] listTaxBands →", envId);
+        const t = await listTaxBands(envId);
+        console.debug("[booking] listTaxBands ✓", t.length);
         t.sort((a, b) => (a.zone || "").localeCompare(b.zone || ""));
         setTaxBands(t);
+
+        console.debug("[booking] init – done");
       } catch (e) {
+        console.error("[booking] init FAILED", e);
         setError(e instanceof Error ? e.message : "Daten konnten nicht geladen werden.");
       } finally {
         setLoading(false);
@@ -86,21 +92,21 @@ export default function Booking() {
   useEffect(() => {
     (async () => {
       if (!propertyId) return;
-      const fromISO = new Date().toISOString().slice(0, 10);
-      const toISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
-      const dates = await listBlockedNights(propertyId, fromISO, toISO);
-      setBlocked(dates.map(d => new Date(d + "T00:00:00")));
+      try {
+        console.debug("[booking] listBlockedNights →", propertyId);
+        const fromISO = new Date().toISOString().slice(0, 10);
+        const toISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
+        const dates = await listBlockedNights(propertyId, fromISO, toISO);
+        console.debug("[booking] listBlockedNights ✓", dates.length);
+        setBlocked(dates.map(d => new Date(d + "T00:00:00")));
 
-      const overlaps = await listOverlapBookings(propertyId, fromISO, toISO);
-      const tmp: Date[] = [];
-      overlaps.forEach(b => {
-        const s = new Date(b.startDate + "T00:00:00");
-        const e = new Date(b.endDate + "T00:00:00");
-        for (let d = new Date(s); d < e; d.setDate(d.getDate() + 1)) {
-          tmp.push(new Date(d));
-        }
-      });
-      setRequestedDisabled(tmp);
+        // Öffentliche Nutzer lesen keine Buchungen → keine zusätzlichen deaktivierten Tage
+        setRequestedDisabled([]);
+      } catch (e) {
+        console.error("[booking] listBlockedNights FAILED", e);
+        // Nicht fatal für Formular – nur Info
+        setRequestedDisabled([]);
+      }
     })();
   }, [propertyId]);
 
@@ -148,19 +154,14 @@ export default function Booking() {
       if (!propertyId || nights <= 0 || nights < MIN_NIGHTS) { setAvail("idle"); return; }
       setAvail("checking");
       try {
-        const [overlaps, ok] = await Promise.all([
-          listOverlapBookings(propertyId, start, end),
-          isRangeAvailable(propertyId, start, end),
-        ]);
+        console.debug("[booking] isRangeAvailable →", { propertyId, start, end, nights });
+        const ok = await isRangeAvailable(propertyId, start, end);
         if (!alive) return;
-        // Wenn es Überschneidungen (requested/approved) gibt ODER Inventory blockiert ist → nicht verfügbar
-        if (overlaps.length > 0 || !ok) {
-          setAvail("unavailable");
-        } else {
-          setAvail("available");
-        }
-      } catch {
+        console.debug("[booking] isRangeAvailable ✓", ok);
+        setAvail(ok ? "available" : "unavailable");
+      } catch (e) {
         if (!alive) return;
+        console.error("[booking] isRangeAvailable FAILED", e);
         setAvail("unavailable");
       }
     }
@@ -173,20 +174,37 @@ export default function Booking() {
     if (!propertyId || !calc) return;
     setSubmitting(true);
     setSubmitMsg(null);
+    console.debug("[booking] submit →", { propertyId, start, end, adults, children, name, email });
     try {
       if (!name.trim() || !email.trim()) {
         setSubmitMsg("Bitte Name und E-Mail angeben.");
         return;
       }
+
+      // --- Werte strikt normalisieren, damit Firestore-Rules (Typen) sicher passen
+      const startISO = start; // bereits YYYY-MM-DD
+      const endISO = end;     // bereits YYYY-MM-DD
+      const adultsNum = Number(adults);
+      const childrenNum = Number(children);
+      const nameClean = name.trim();
+      const emailClean = email.trim();
+      const phoneClean = phone.trim();
+      const messageClean = message.trim();
+
+      if (!emailClean) {
+        setSubmitMsg("Bitte eine gültige E-Mail angeben.");
+        return;
+      }
+
       await createBookingRequest({
-        propertyId,
-        startDate: start,
-        endDate: end,
-        adults,
-        children,
+        propertyId: String(propertyId),
+        startDate: startISO,
+        endDate: endISO,
+        adults: adultsNum,
+        children: childrenNum,
         status: "requested",
-        contact: { name: name.trim(), email: email.trim(), phone: phone.trim() },
-        message: message.trim(),
+        contact: { name: nameClean, email: emailClean, phone: phoneClean },
+        message: messageClean,
         summary: {
           nights,
           nightlyTotal: calc.base.nightsTotal,
@@ -196,8 +214,44 @@ export default function Booking() {
           currency,
         },
       });
+      console.debug("[booking] submit – createBookingRequest ✓");
+
+      // Nach erfolgreichem Speichern: Mail-Endpoint aufrufen (nicht blockierend für den UX-Flow)
+      try {
+        const mailUrl = import.meta.env.VITE_MAIL_API_URL as string | undefined;
+        const mailKey = import.meta.env.VITE_MAIL_API_KEY as string | undefined;
+        if (mailUrl && mailKey) {
+          const resp = await fetch(mailUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Api-Key": mailKey,
+            },
+            body: JSON.stringify({
+              propertyId: String(propertyId),
+              startDate: startISO,
+              endDate: endISO,
+              adults: adultsNum,
+              children: childrenNum,
+              contact: { name: nameClean, email: emailClean, phone: phoneClean },
+              message: messageClean,
+            }),
+          });
+          console.debug("[booking] mail resp", resp.status);
+          if (!resp.ok) {
+            const errJson = await resp.json().catch(() => ({} as Record<string, unknown>));
+            console.warn("[mail] send failed", resp.status, errJson);
+          }
+        } else {
+          console.info("[mail] skipped – VITE_MAIL_API_URL / VITE_MAIL_API_KEY not set");
+        }
+      } catch (e) {
+        console.warn("[mail] fetch error", e);
+      }
+
       setSubmitMsg("Vielen Dank! Deine Anfrage wurde übermittelt. Wir melden uns zeitnah.");
     } catch (err) {
+      console.error("[booking] submit FAILED", err);
       setSubmitMsg(err instanceof Error ? err.message : "Anfrage konnte nicht gesendet werden.");
     } finally {
       setSubmitting(false);

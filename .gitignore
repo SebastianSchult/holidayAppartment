@@ -23,3 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.production
+
+# Secrets nicht committen
+sa-keys/
+*.json
+!package.json
+sa-keys/
+.env*
+backend-php/vendor/

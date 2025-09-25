@@ -1,60 +1,135 @@
-import { Navigate, useLocation } from "react-router-dom";
-import React from "react";
-import { useAuth } from "../../../app/providers/AuthProvider";
-
-interface Props {
-  children: React.ReactNode;
-}
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../../../app/providers/AuthProvider";// Pfad ggf. anpassen, falls anders
+import { db } from "../../../lib/firebase"; // Pfad ggf. anpassen
+import {
+  collectionGroup,
+  getDocs,
+  limit,
+  query,
+  where,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 
 /**
- * Wrapper für Admin-Routen.
- * Zeigt während Laden einen Spinner, ansonsten entweder die Kinder oder „Access denied“.
- */
-export default function RequireAdmin({ children }: Props) {
-  const { user, loading, isAdmin } = useAuth();
-  const location = useLocation();
+ * Lässt rein, wenn:
+ *  - isAdmin == true   ODER
+ *  - es ein Member-Dokument unter properties members/{uid} gibt (role = owner/manager)*/
+export default function RequireAdmin() {
+  const { user, loading } = useAuth();
+  const loc = useLocation();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-slate-600">
-        <svg
-          className="animate-spin h-6 w-6 mr-2 text-[color:var(--ocean,#0e7490)]"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          ></circle>
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-          ></path>
-        </svg>
-        <span>Laden …</span>
-      </div>
-    );
+  const [checking, setChecking] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (!user) {
+        setHasAccess(false);
+        setChecking(false);
+        return;
+      }
+
+      // Token einmal hart refreshen, damit neue Claims (isAdmin) sicher drin sind
+      try {
+        await user.getIdToken(true);
+      } catch {
+        // ignore
+      }
+
+      // 1) Admin-Claim schnell prüfen
+      const token = await user.getIdTokenResult();
+      if (token.claims?.isAdmin === true) {
+        if (!cancelled) {
+          setHasAccess(true);
+          setChecking(false);
+        }
+        return;
+      }
+
+      // 2a) Schneller Fallback zuerst: direkter Doc-Read unter properties/{DEFAULT_PROP}/members/{uid}
+      try {
+        const defaultPropId = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_DEFAULT_PROPERTY_ID;
+        if (defaultPropId) {
+          const ref = doc(db, "properties", defaultPropId, "members", user.uid);
+          const ds = await getDoc(ref);
+          if (!cancelled && ds.exists()) {
+            console.debug("[RequireAdmin] direct member doc ✓ (uid under default property)");
+            setHasAccess(true);
+            setChecking(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("[RequireAdmin] direct member doc read failed", e);
+      }
+
+      // 2b) Fallback: members (collection group) per E-Mail
+      try {
+        const email = user.email ?? "";
+        if (!email) {
+          if (!cancelled) {
+            setHasAccess(false);
+            setChecking(false);
+          }
+          return;
+        }
+        console.debug("[RequireAdmin] cg members by email →", email);
+        const q = query(
+          collectionGroup(db, "members"),
+          where("email", "==", email),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!cancelled && !snap.empty) {
+          console.debug("[RequireAdmin] cg members by email ✓");
+          setHasAccess(true); // mind. 1 Mitgliedschaft gefunden
+          setChecking(false);
+          return;
+        }
+        if (!cancelled) {
+          console.debug("[RequireAdmin] cg members by email: none");
+          setHasAccess(false);
+          setChecking(false);
+        }
+      } catch (e) {
+        console.warn("[RequireAdmin] membership check failed:", e);
+        if (!cancelled) {
+          setHasAccess(false);
+          setChecking(false);
+        }
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // Auth noch nicht geladen
+  if (loading || checking) {
+    return <div style={{ padding: 16 }}>Lade…</div>;
   }
 
-  // Nicht eingeloggt → Login mit Rücksprungziel
+  // nicht eingeloggt → zum Login
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Navigate to="/admin/login" replace state={{ from: loc }} />;
   }
 
-  // Eingeloggt, aber kein Admin → Access denied
-  if (!isAdmin) {
+  // Kein Admin & keine Mitgliedschaft → Zugriff verweigert
+  if (!hasAccess) {
     return (
-      <div className="flex items-center justify-center h-64 text-red-700">
-        Zugriff verweigert – keine Admin-Berechtigung
+      <div style={{ padding: 24, maxWidth: 720, margin: "40px auto", textAlign: "center" }}>
+        <h2 style={{ marginBottom: 12 }}>Zugriff verweigert</h2>
+        <p>Für diesen Bereich benötigst du Administrator- oder Manager-Rechte.</p>
       </div>
     );
   }
 
-  return <>{children}</>;
+  // Zugriff ok → geschützte Inhalte rendern
+  return <Outlet />;
 }

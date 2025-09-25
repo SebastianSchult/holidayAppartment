@@ -1,0 +1,11 @@
+# React SPA Routing
+RewriteEngine On
+RewriteBase /
+
+# Bereits existierende Dateien/Ordner normal ausliefern
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Alles andere an index.html
+RewriteRule . /index.html [L]

@@ -1,32 +1,110 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { setGlobalOptions } from "firebase-functions/v2";
+import * as admin from "firebase-admin";
+import { sendMail } from "./mailer.js";
+import {
+  bookingRequestOwner,
+  bookingRequestGuestAck,
+  bookingApprovedGuest,
+  bookingDeclinedGuest,
+  bookingCancelledGuest,
+} from "./emailTemplates.js";
+setGlobalOptions({ 
+  region: "europe-west3"
+});
+admin.initializeApp();
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
-import * as logger from "firebase-functions/logger";
+const OWNER_EMAIL = process.env.OWNER_EMAIL || "contact@sebastian-schult-dev.de";
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+// Neue Anfrage -> Mail an Vermieter + Eingangsbestätigung an Gast
+export const onBookingCreate = onDocumentCreated("bookings/{bookingId}", async (event) => {
+  const snap = event.data; // DocumentSnapshot
+  if (!snap) return;
+  const data = snap.data() as any;
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+  const {
+    propertyId,
+    startDate,
+    endDate,
+    adults,
+    children,
+    contact,
+    message,
+    summary,
+  } = data;
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  // Vermieter
+  try {
+    const htmlOwner = bookingRequestOwner({
+      propertyId,
+      startDate,
+      endDate,
+      adults,
+      children,
+      contactName: contact?.name,
+      contactEmail: contact?.email,
+      contactPhone: contact?.phone,
+      message,
+      summary,
+    });
+    await sendMail(OWNER_EMAIL, "Neue Buchungsanfrage", htmlOwner);
+  } catch (e) {
+    console.error("send owner request mail failed:", e);
+  }
+
+  // Gast (Eingangsbestätigung)
+  if (contact?.email) {
+    try {
+      const htmlGuest = bookingRequestGuestAck({
+        startDate,
+        endDate,
+        adults,
+        children,
+        contactName: contact?.name,
+      });
+      await sendMail(contact.email, "Anfrage eingegangen – wir melden uns", htmlGuest);
+    } catch (e) {
+      console.error("send guest ack mail failed:", e);
+    }
+  }
+});
+
+// Statuswechsel -> Mail an Gast
+export const onBookingUpdate = onDocumentUpdated("bookings/{bookingId}", async (event) => {
+  const before = event.data?.before.data() as any | undefined;
+  const after = event.data?.after.data() as any | undefined;
+  if (!before || !after) return;
+
+  const statusBefore = before.status;
+  const statusAfter = after.status;
+  if (statusBefore === statusAfter) return;
+
+  const contactEmail: string | undefined = after?.contact?.email;
+  const contactName: string | undefined = after?.contact?.name;
+  const { startDate, endDate, adults, children } = after as any;
+  if (!contactEmail) return;
+
+  try {
+    if (statusAfter === "approved") {
+      await sendMail(
+        contactEmail,
+        "Buchung bestätigt",
+        bookingApprovedGuest({ startDate, endDate, adults, children, contactName })
+      );
+    } else if (statusAfter === "declined") {
+      await sendMail(
+        contactEmail,
+        "Buchung leider abgelehnt",
+        bookingDeclinedGuest({ startDate, endDate, contactName })
+      );
+    } else if (statusAfter === "cancelled") {
+      await sendMail(
+        contactEmail,
+        "Buchung storniert",
+        bookingCancelledGuest({ startDate, endDate, contactName })
+      );
+    }
+  } catch (e) {
+    console.error("send status mail failed:", e);
+  }
+});

@@ -15,14 +15,12 @@ export function AppRoutes() {
       <Route path="/prices" element={<Prices />} />
       <Route path="/book" element={<Booking />} />
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/admin"
-        element={
-          <RequireAdmin>
-            <AdminDashboard />
-          </RequireAdmin>
-        }
-      />
+      <Route path="/admin/login" element={<Login />} />
+      {/* Admin guard wrapper */}
+      <Route element={<RequireAdmin />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Route>
     </Routes>
   );
 }
+export default AppRoutes;

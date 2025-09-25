@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.isAdmin == true;
+    }
+
+    // Prüft, ob der aktuelle Nutzer für diese Property "owner" oder "manager" ist.
+    function canManageProperty(propId) {
+      return isAdmin()
+        || (
+          isSignedIn() &&
+          exists(/databases/$(database)/documents/properties/$(propId)/members/$(request.auth.uid)) &&
+          (
+            get(/databases/$(database)/documents/properties/$(propId)/members/$(request.auth.uid)).data.role == 'owner' ||
+            get(/databases/$(database)/documents/properties/$(propId)/members/$(request.auth.uid)).data.role == 'manager'
+          )
+        );
+    }
+
+    // --- Properties-Stammdaten ---
+    match /properties/{propId} {
+      // Gäste dürfen Property-Daten lesen
+      allow read: if true;
+
+      // Nur Admin darf Properties neu anlegen/löschen
+      allow create, delete: if isAdmin();
+
+      // Owner/Manager (oder Admin) dürfen diese Property aktualisieren
+      allow update: if canManageProperty(propId);
+
+      // Mitglieder-Verwaltung je Property
+      match /members/{uid} {
+        // Lesen: Admin ODER eingeloggter Nutzer, dessen E-Mail im Dokument steht
+        allow read: if
+          isAdmin() ||
+          (isSignedIn() && resource.data.email is string && resource.data.email == request.auth.token.email);
+
+        // Rollen/Mitglieder pflegt nur der Admin
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Saisons je Property
+      match /seasons/{seasonId} {
+        allow read: if true;
+        allow write: if canManageProperty(propId);
+      }
+
+      // Kurtaxe je Property
+      match /taxBands/{taxId} {
+        allow read: if true;
+        allow write: if canManageProperty(propId);
+      }
+
+      // Inventar/Belegungstage je Property (falls genutzt)
+      match /nights/{nightId} {
+        allow read: if true;
+        allow write: if canManageProperty(propId);
+      }
+    }
+
+    // ---- Top-level Seasons (aktuelles Datenmodell nutzt /seasons) ----
+    match /seasons/{seasonId} {
+      // öffentlich lesbar (für Preisdarstellung)
+      allow read: if true;
+
+      // schreiben nur Admin ODER Manager/Owner der referenzierten Property
+      allow create, update, delete: if
+        isAdmin() ||
+        (
+          isSignedIn() &&
+          request.resource.data.propertyId is string &&
+          canManageProperty(request.resource.data.propertyId)
+        );
+    }
+
+    // ---- Top-level Tax Bands (aktuelles Datenmodell nutzt /taxBands) ----
+    match /taxBands/{taxId} {
+      // öffentlich lesbar (für Anzeige der Kurtaxe)
+      allow read: if true;
+
+      // schreiben nur Admin ODER Manager/Owner der referenzierten Property
+      allow create, update, delete: if
+        isAdmin() ||
+        (
+          isSignedIn() &&
+          request.resource.data.propertyId is string &&
+          canManageProperty(request.resource.data.propertyId)
+        );
+    }
+
+    // ---- Top-level Inventory: /inventory/{propId}/nights/{nightId} ----
+    match /inventory/{propId}/nights/{nightId} {
+      // Gäste dürfen Verfügbarkeit lesen
+      allow read: if true;
+
+      // Schreiben: Admin oder Owner/Manager der Property
+      allow create, update, delete: if
+        isAdmin() ||
+        (
+          isSignedIn() &&
+          canManageProperty(propId)
+        );
+    }
+
+    // --- Buchungen (Root-Collection) ---
+    match /bookings/{bookingId} {
+
+      // Gäste dürfen Anfragen erstellen (status == "requested")
+      allow create: if
+        request.resource.data.status == 'requested' &&
+        request.resource.data.propertyId is string &&
+        request.resource.data.startDate is string &&
+        request.resource.data.endDate is string &&
+        request.resource.data.adults is number &&
+        request.resource.data.children is number &&
+        request.resource.data.contact is map &&
+        request.resource.data.contact.email is string;
+
+      // Lesen: Admin ODER Owner/Manager der betreffenden Property.
+      // Für Queries wird diese Rule pro Dokument ausgewertet (resource.data.*).
+      allow read: if
+        isAdmin() ||
+        (isSignedIn() && resource.data.propertyId is string && canManageProperty(resource.data.propertyId));
+
+      // Update/Delete: ebenso – basiert auf bestehendem Doc (resource.data)
+      allow update, delete: if
+        isAdmin() ||
+        (isSignedIn() && resource.data.propertyId is string && canManageProperty(resource.data.propertyId));
+    }
+
+    // Optional: eigenes Nutzerprofil (falls vorhanden)
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+  }
+}
