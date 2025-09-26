@@ -1,5 +1,5 @@
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, updateDoc, where, setDoc
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, updateDoc, where, setDoc, runTransaction, Timestamp
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { Property, Season, TouristTaxBand, Booking, Role } from "./schemas";
@@ -11,7 +11,8 @@ const OWNER_EMAIL = (import.meta as unknown as { env: Record<string, string | un
 
 async function sendAdminActionMail(
   action: "approved" | "declined" | "cancelled",
-  booking: (Booking & { id: string })
+  booking: (Booking & { id: string }),
+  propertyName?: string
 ): Promise<{ ok: boolean; detail?: string }> {
   if (!MAIL_API || !MAIL_API_KEY) {
     console.warn("[mail] skipped – MAIL_API or API_KEY missing");
@@ -31,6 +32,7 @@ async function sendAdminActionMail(
       message: booking.message ?? "",
       status: booking.status,
       notify: { guest: booking.contact?.email, owner: OWNER_EMAIL },
+      propertyName,
     };
     const resp = await fetch(MAIL_API, {
       method: "POST",
@@ -135,7 +137,10 @@ export async function deleteTaxBand(id: string) {
 export async function createBookingRequest(
   data: Omit<Booking, "id" | "createdAt" | "updatedAt">
 ) {
-  // createdAt/updatedAt werden serverseitig gesetzt
+  // 1) Holds für den Zeitraum anlegen (fail-fast, wenn bereits belegt/angefragt)
+  await createHoldsForRange(data.propertyId, data.startDate, data.endDate);
+
+  // 2) Buchung anlegen
   return addDoc(collection(db, COL.bookings), {
     ...data,
     createdAt: new Date(),
@@ -188,14 +193,96 @@ function eachNight(startISO: string, endISO: string): string[] {
   return out;
 }
 
+/** ---------------------------
+ *  Public Holds (temporäre Reservierungen)
+ *  --------------------------- */
+
+type HoldDoc = {
+  propertyId: string;
+  date: string;       // YYYY-MM-DD
+  status: 'requested' | 'approved';
+  expiresAt: Timestamp;
+  bookingRef?: string;
+  createdAt: Date;
+};
+
+const HOLDS_TTL_HOURS = 72;
+
+/** Legt pro Nacht einen Hold an. Transaktional: schlägt fehl, wenn eine der Nächte bereits belegt/gehould ist (nicht abgelaufen). */
+export async function createHoldsForRange(propertyId: string, startISO: string, endISO: string, bookingRef?: string) {
+  const days = eachNight(startISO, endISO);
+  if (days.length === 0) throw new Error('Ungültiger Zeitraum.');
+  const now = new Date();
+  const expires = new Date(now.getTime() + HOLDS_TTL_HOURS * 3600 * 1000);
+
+  await runTransaction(db, async (tx) => {
+    // Referenzen vorbereiten
+    const refs = days.map((day) => ({ day, ref: doc(db, 'publicHolds', `${propertyId}_${day}`) }));
+
+    // --- READ PHASE: alle relevanten Doks lesen & prüfen
+    for (const { ref } of refs) {
+      const snap = await tx.get(ref);
+      if (snap.exists()) {
+        const data = snap.data() as Partial<HoldDoc>;
+        const exp = (data.expiresAt && data.expiresAt instanceof Timestamp) ? data.expiresAt.toDate() : null;
+        // Wenn Hold noch gültig ist -> blockiert
+        if (!exp || exp > now) {
+          throw new Error('Zeitraum bereits angefragt.');
+        }
+      }
+    }
+
+    // --- WRITE PHASE: wenn frei, alle Holds setzen
+    for (const { ref, day } of refs) {
+      tx.set(ref, {
+        propertyId,
+        date: day,
+        status: 'requested',
+        expiresAt: Timestamp.fromDate(expires),
+        bookingRef: bookingRef || '',
+        createdAt: now,
+      } as HoldDoc);
+    }
+  });
+}
+
+/** Listet aktive Holds im Bereich [fromISO, toISO). */
+export async function listPublicHolds(propertyId: string, fromISO: string, toISO: string): Promise<string[]> {
+  const holdsCol = collection(db, 'publicHolds');
+  const qy = query(
+    holdsCol,
+    where('propertyId', '==', propertyId),
+    where('date', '>=', fromISO),
+    where('date', '<', toISO),
+    where('expiresAt', '>', new Date())
+  );
+  const snap = await getDocs(qy);
+  return snap.docs.map(d => (d.data() as { date: string }).date);
+}
+
+/** Optional: löscht Holds für einen Bereich (nur Admin-Tools). */
+export async function releaseHoldsForRange(propertyId: string, startISO: string, endISO: string) {
+  const days = eachNight(startISO, endISO);
+  await Promise.all(days.map(day => deleteDoc(doc(db, 'publicHolds', `${propertyId}_${day}`))));
+}
+
 /** Prüft, ob für alle Nächte im Bereich noch kein Hold existiert. */
 export async function isRangeAvailable(propertyId: string, startISO: string, endISO: string): Promise<boolean> {
   const days = eachNight(startISO, endISO);
   if (days.length === 0) return false;
-  const checks = await Promise.all(
-    days.map((day) => getDoc(doc(db, COL.inventory, propertyId, "nights", day)))
+
+  // 1) Inventar (bestätigte Buchungen)
+  const invChecks = await Promise.all(
+    days.map((day) => getDoc(doc(db, COL.inventory, propertyId, 'nights', day)))
   );
-  return checks.every((snap) => !snap.exists());
+  const invFree = invChecks.every((snap) => !snap.exists());
+  if (!invFree) return false;
+
+  // 2) Aktive Holds
+  const fromISO = startISO;
+  const toISO = endISO;
+  const holds = await listPublicHolds(propertyId, fromISO, toISO);
+  return holds.length === 0;
 }
 
 /** Blockiert alle Nächte für eine bestätigte Buchung. */
@@ -217,15 +304,33 @@ export async function blockNightsForBooking(
   );
 }
 
+/** Prüft nur das Inventar (bestätigte Nächte), ignoriert Holds. */
+export async function isInventoryFreeRange(propertyId: string, startISO: string, endISO: string): Promise<boolean> {
+  const days = eachNight(startISO, endISO);
+  if (days.length === 0) return false;
+  const checks = await Promise.all(
+    days.map((day) => getDoc(doc(db, COL.inventory, propertyId, 'nights', day)))
+  );
+  return checks.every((snap) => !snap.exists());
+}
+
 /** Komfortfunktion: prüft, blockiert und setzt Status auf approved. */
 export async function approveBooking(booking: Booking & { id: string }) {
-  const ok = await isRangeAvailable(booking.propertyId, booking.startDate, booking.endDate);
-  if (!ok) {
-    throw new Error("Zeitraum ist bereits belegt.");
+  // Für die Freigabe zählt nur das Inventar. Holds (angefragte Reservierungen) blockieren die Freigabe nicht.
+  const invFree = await isInventoryFreeRange(booking.propertyId, booking.startDate, booking.endDate);
+  if (!invFree) {
+    throw new Error('Zeitraum ist bereits bestätigt belegt.');
   }
+
   await blockNightsForBooking(booking.id, booking.propertyId, booking.startDate, booking.endDate);
-  await updateDoc(doc(db, COL.bookings, booking.id), { status: "approved", updatedAt: new Date() });
-  return await sendAdminActionMail("approved", booking);
+  await updateDoc(doc(db, COL.bookings, booking.id), { status: 'approved', updatedAt: new Date() });
+
+  // Holds für diesen Bereich bereinigen (alle angefragten Reservierungen für die betroffenen Nächte entfernen)
+  await releaseHoldsForRange(booking.propertyId, booking.startDate, booking.endDate);
+
+  const prop = await getProperty(booking.propertyId);
+  const pname = prop?.name || 'Antjes Ankerplatz';
+  return await sendAdminActionMail('approved', booking, pname);
 }
 
 /** Setzt Status auf declined (ohne Inventaränderung). */
@@ -235,7 +340,11 @@ export async function declineBooking(id: string) {
   await updateDoc(ref, { status: "declined", updatedAt: new Date() });
   if (snap.exists()) {
     const b = { id: snap.id, ...(snap.data() as Booking) } as Booking & { id: string };
-    return await sendAdminActionMail("declined", b);
+    // Vormerkungen (Holds) für den Zeitraum freigeben
+    await releaseHoldsForRange(b.propertyId, b.startDate, b.endDate);
+    const prop = await getProperty(b.propertyId);
+    const pname = prop?.name || "Antjes Ankerplatz";
+    return await sendAdminActionMail("declined", b, pname);
   }
   return { ok: true };
 }
@@ -260,6 +369,16 @@ export async function listBlockedNights(
   return snap.docs
     .map((d) => (d.data() as { date?: string }).date || d.id)
     .filter(Boolean) as string[];
+}
+
+/** Belegte Nächte = Inventory (approved) + aktive Holds */
+export async function listUnavailableNights(propertyId: string, fromISO: string, toISO: string): Promise<string[]> {
+  const [inv, holds] = await Promise.all([
+    listBlockedNights(propertyId, fromISO, toISO),
+    listPublicHolds(propertyId, fromISO, toISO),
+  ]);
+  const set = new Set([...inv, ...holds]);
+  return Array.from(set).sort();
 }
 
 /**
@@ -312,17 +431,29 @@ export async function freeNightsForBooking(booking: Booking & { id: string }) {
 
 /** Storniert eine bestätigte Buchung: Nächte freigeben + Status auf "cancelled". */
 export async function cancelBooking(booking: Booking & { id: string }) {
+  // Inventar freigeben
   await freeNightsForBooking(booking);
   await updateDoc(doc(db, COL.bookings, booking.id), {
     status: "cancelled",
     updatedAt: new Date(),
   });
-  return await sendAdminActionMail("cancelled", booking);
+  // Etwaige Holds im Zeitraum ebenfalls freigeben (robust, auch wenn idR nach Approval bereits entfernt)
+  await releaseHoldsForRange(booking.propertyId, booking.startDate, booking.endDate);
+
+  const prop = await getProperty(booking.propertyId);
+  const pname = prop?.name || "Antjes Ankerplatz";
+  return await sendAdminActionMail("cancelled", booking, pname);
 }
 
 /** Löscht eine Buchung vollständig (nur für Admin gedacht). */
 export async function deleteBooking(id: string) {
-  await deleteDoc(doc(db, COL.bookings, id));
+  const ref = doc(db, COL.bookings, id);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const b = { id: snap.id, ...(snap.data() as Booking) } as Booking & { id: string };
+    await releaseHoldsForRange(b.propertyId, b.startDate, b.endDate);
+  }
+  await deleteDoc(ref);
 }
 
 /** ---------------------------

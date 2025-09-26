@@ -1,6 +1,6 @@
 // src/pages/Booking.tsx
-import { useEffect, useMemo, useState } from "react";
-import { listSeasons, listTaxBands, createBookingRequest, isRangeAvailable, listBlockedNights } from "../lib/db";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { listSeasons, listTaxBands, createBookingRequest, isRangeAvailable, listUnavailableNights } from "../lib/db";
 import type { Property, Season, TouristTaxBand } from "../lib/schemas";
 import { priceForStay, touristTaxForStay } from "../lib/pricing";
 import { DayPicker } from "react-day-picker";
@@ -59,7 +59,16 @@ export default function Booking() {
 
   // Submit-Status
   const [submitting, setSubmitting] = useState(false);
-  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+
+  // Toast notice state and timer
+  type Notice = { type: "success" | "error"; text: string };
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
+  function flash(n: Notice) {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setNotice(n);
+    toastTimer.current = window.setTimeout(() => setNotice(null), 3500);
+  }
 
   // Verfügbarkeits-Prüfung
   const [avail, setAvail] = useState<"idle" | "checking" | "available" | "unavailable">("idle");
@@ -74,7 +83,7 @@ export default function Booking() {
         if (!envId) throw new Error("Konfiguration fehlt: VITE_DEFAULT_PROPERTY_ID.");
 
         setPropertyId(envId);
-        setPropertyName("Ferienwohnung");
+        setPropertyName("Antjes Ankerplatz");
 
         console.debug("[booking] listSeasons →", envId);
         const s = await listSeasons(envId);
@@ -107,18 +116,18 @@ export default function Booking() {
     (async () => {
       if (!propertyId) return;
       try {
-        console.debug("[booking] listBlockedNights →", propertyId);
+        console.debug("[booking] listUnavailableNights →", propertyId);
         const fromISO = new Date().toISOString().slice(0, 10);
         const toISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
-        const dates = await listBlockedNights(propertyId, fromISO, toISO);
-        console.debug("[booking] listBlockedNights ✓", dates.length);
+        const dates = await listUnavailableNights(propertyId, fromISO, toISO);
+        console.debug("[booking] listUnavailableNights ✓", dates.length);
         // IMPORTANT: use local noon to avoid DST/UTC edge cases where the day shifts
         setBlocked(dates.map(d => new Date(d + "T12:00:00")));
 
-        // Öffentliche Nutzer lesen keine Buchungen → keine zusätzlichen deaktivierten Tage
+        // Öffentliche Nutzer: keine zusätzlichen deaktivierten Tage (bereits in listUnavailableNights enthalten)
         setRequestedDisabled([]);
       } catch (e) {
-        console.error("[booking] listBlockedNights FAILED", e);
+        console.error("[booking] listUnavailableNights FAILED", e);
         setRequestedDisabled([]);
       }
     })();
@@ -187,11 +196,10 @@ export default function Booking() {
     e.preventDefault();
     if (!propertyId || !calc) return;
     setSubmitting(true);
-    setSubmitMsg(null);
     console.debug("[booking] submit →", { propertyId, start, end, adults, children, name, email });
     try {
       if (!name.trim() || !email.trim()) {
-        setSubmitMsg("Bitte Name und E-Mail angeben.");
+        flash({ type: "error", text: "Bitte Name und E-Mail angeben." });
         return;
       }
 
@@ -206,7 +214,7 @@ export default function Booking() {
       const messageClean = message.trim();
 
       if (!emailClean) {
-        setSubmitMsg("Bitte eine gültige E-Mail angeben.");
+        flash({ type: "error", text: "Bitte eine gültige E-Mail angeben." });
         return;
       }
 
@@ -248,6 +256,7 @@ export default function Booking() {
             },
             body: JSON.stringify({
               propertyId: String(propertyId),
+              propertyName,
               startDate: startISO,
               endDate: endISO,
               adults: adultsNum,
@@ -273,10 +282,10 @@ export default function Booking() {
         console.warn("[mail] fetch error", e);
       }
 
-      setSubmitMsg("Vielen Dank! Deine Anfrage wurde übermittelt. Wir melden uns zeitnah.");
+      flash({ type: "success", text: "Vielen Dank! Deine Anfrage wurde übermittelt. Wir melden uns zeitnah." });
     } catch (err) {
       console.error("[booking] submit FAILED", err);
-      setSubmitMsg(err instanceof Error ? err.message : "Anfrage konnte nicht gesendet werden.");
+      flash({ type: "error", text: err instanceof Error ? err.message : "Anfrage konnte nicht gesendet werden." });
     } finally {
       setSubmitting(false);
     }
@@ -493,8 +502,28 @@ export default function Booking() {
         >
           {submitting ? "Sende …" : "Anfrage senden"}
         </button>
-        {submitMsg && <p className="text-sm text-slate-600">{submitMsg}</p>}
       </div>
+      {notice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={[
+            "fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-xl px-4 py-2 shadow-lg ring-1 ring-black/10 text-white flex items-center gap-3",
+            notice.type === "success" ? "bg-green-600" : "bg-red-600",
+          ].join(" ")}
+        >
+          <span>{notice.text}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="rounded bg-white/20 px-2 py-1 text-sm hover:bg-white/30"
+            aria-label="Hinweis schließen"
+            title="Hinweis schließen"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </section>
   );
 }

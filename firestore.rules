@@ -109,6 +109,35 @@ service cloud.firestore {
         );
     }
 
+    // ---- Öffentliche, temporäre Reservierungen je Nacht ----
+    // Collection: /publicHolds/{docId}
+    // Doc-ID-Empfehlung: `${propertyId}_${date}` (z.B. "demo_2025-09-27")
+    match /publicHolds/{holdId} {
+      // Jeder darf lesen (keine personenbezogenen Daten)
+      allow read: if true;
+
+      // Erstellen: öffentlich erlaubt, aber stark eingeschränkt
+      // - status muss 'requested' sein
+      // - propertyId & date müssen Strings sein
+      // - expiresAt muss Timestamp sein und maximal +72h in der Zukunft liegen
+      // Update/Delete: nur Admin oder Owner/Manager der Property
+      allow create: if
+        request.resource.data.status == 'requested' &&
+        request.resource.data.propertyId is string &&
+        request.resource.data.date is string &&
+        request.resource.data.expiresAt is timestamp &&
+        request.resource.data.expiresAt > request.time &&
+        request.resource.data.expiresAt <= request.time + duration.value(72, 'h');
+
+      allow update, delete: if
+        isAdmin() ||
+        (
+          isSignedIn() &&
+          resource.data.propertyId is string &&
+          canManageProperty(resource.data.propertyId)
+        );
+    }
+
     // --- Buchungen (Root-Collection) ---
     match /bookings/{bookingId} {
 
