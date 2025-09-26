@@ -18,11 +18,27 @@ export default function BookingsTable(
   const [busy, setBusy] = useState<false | "approve" | "decline">(false);
 
   const [notice, setNotice] = useState<null | { type: "success" | "error"; text: string; actionText?: string; onAction?: () => void }>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function flash(type: "success" | "error", text: string, actionText?: string, onAction?: () => void) {
     setNotice({ type, text, actionText, onAction });
-    setTimeout(() => setNotice(null), 3000);
+    if (noticeTimer.current) {
+      clearTimeout(noticeTimer.current);
+    }
+    noticeTimer.current = setTimeout(() => {
+      setNotice(null);
+      noticeTimer.current = null;
+    }, 3000);
   }
   const [confirmState, setConfirmState] = useState<null | { kind: "cancel" | "delete"; booking: Booking & { id: string } }>(null);
+
+  // Local state for search, sort, pagination
+  const [q, setQ] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"startDate" | "status">("startDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [page, setPage] = useState<number>(0);
+
+  useEffect(() => { setPage(0); }, [q, sortBy, sortDir, pageSize, rows]);
 
   useEffect(() => {
     (async () => {
@@ -168,6 +184,40 @@ export default function BookingsTable(
   const isDeclined = (s: string) => ["declined", "rejected", "abgelehnt"].includes(norm(s));
   const isCancelled = (s: string) => ["cancelled", "canceled", "storniert"].includes(norm(s));
 
+  // Derived data for filtering, sorting, pagination
+  const statusOrder: Record<string, number> = { requested: 0, approved: 1, declined: 2, cancelled: 3 };
+
+  const filteredRows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter(b => {
+      const hay = `${b.contact?.name || ""} ${b.contact?.email || ""}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [rows, q]);
+
+  const sortedRows = useMemo(() => {
+    const out = [...filteredRows];
+    out.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "startDate") {
+        cmp = a.startDate.localeCompare(b.startDate);
+      } else {
+        const sa = statusOrder[(a.status || "").toLowerCase()] ?? 99;
+        const sb = statusOrder[(b.status || "").toLowerCase()] ?? 99;
+        cmp = sa - sb;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return out;
+  }, [filteredRows, sortBy, sortDir]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(sortedRows.length / pageSize)), [sortedRows.length, pageSize]);
+  const pageRows = useMemo(() => {
+    const start = Math.min(page, totalPages - 1) * pageSize;
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, page, pageSize, totalPages]);
+
   if (loading) return <p className="text-slate-600">Laden …</p>;
   if (error) return <p className="text-red-700">{error}</p>;
   if (rows.length === 0)
@@ -175,6 +225,54 @@ export default function BookingsTable(
 
   return (
     <>
+      {/* Toolbar for search/sort/pagination */}
+      <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Suche (Name, E‑Mail)…"
+            className="input w-64"
+            aria-label="Suche"
+          />
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            Sortieren nach
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "startDate" | "status")}
+              className="rounded border border-slate-300 bg-white px-2 py-1"
+            >
+              <option value="startDate">Startdatum</option>
+              <option value="status">Status</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+            className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"
+            aria-label="Sortierrichtung wechseln"
+            title="Sortierrichtung wechseln"
+          >
+            {sortDir === "asc" ? "↑" : "↓"}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            Einträge pro Seite
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="rounded border border-slate-300 bg-white px-2 py-1"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-700">
@@ -187,7 +285,7 @@ export default function BookingsTable(
             </tr>
           </thead>
           <tbody>
-            {rows.map((b) => (
+            {pageRows.map((b) => (
               <tr key={b.id} className="border-t">
                 <Td>
                   <div className="font-medium">{b.contact?.name || "-"}</div>
@@ -263,6 +361,31 @@ export default function BookingsTable(
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination footer */}
+      <div className="mt-3 flex items-center justify-between text-sm">
+        <div className="text-slate-600">
+          {sortedRows.length} Einträge · Seite {Math.min(page + 1, totalPages)} / {totalPages}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page <= 0}
+            className="rounded border border-slate-300 px-3 py-1.5 disabled:opacity-50 hover:bg-slate-50"
+          >
+            Zurück
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            className="rounded border border-slate-300 px-3 py-1.5 disabled:opacity-50 hover:bg-slate-50"
+          >
+            Weiter
+          </button>
+        </div>
       </div>
 
       {/* Modal */}
@@ -417,8 +540,11 @@ export default function BookingsTable(
         </LightModal>
       )}
       {notice && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg px-4 py-2 shadow-lg text-white"
-             style={{ backgroundColor: notice.type === 'success' ? '#16a34a' : '#dc2626' }}>
+        <div
+          className={`fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg px-4 py-2 shadow-lg text-white ${notice.type === "success" ? "bg-green-600" : "bg-red-600"}`}
+          role="status"
+          aria-live="polite"
+        >
           <span>{notice.text}</span>
           {notice.actionText && notice.onAction && (
             <button
@@ -434,6 +560,14 @@ export default function BookingsTable(
               {notice.actionText}
             </button>
           )}
+          <button
+            onClick={() => setNotice(null)}
+            aria-label="Schließen"
+            className="rounded bg-white/20 px-2 py-1 text-sm hover:bg-white/30"
+            type="button"
+          >
+            ✕
+          </button>
         </div>
       )}
     </>
