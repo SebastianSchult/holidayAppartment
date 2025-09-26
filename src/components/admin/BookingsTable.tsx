@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { listBookings, approveBooking, declineBooking, deleteBooking, cancelBooking } from "../../lib/db";
 import type { Booking } from "../../lib/schemas";
 
-export default function BookingsTable({ propertyId, onCancel }: { propertyId: string; onCancel?: (b: Booking & { id: string }) => Promise<void> }) {
+type OnCancelResult = void | { ok: boolean; detail?: string };
+type OnCancelFn = (b: Booking & { id: string }) => Promise<OnCancelResult>;
+
+export default function BookingsTable(
+  { propertyId, onCancel }: { propertyId: string; onCancel?: OnCancelFn }
+) {
   const [rows, setRows] = useState<(Booking & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,21 +60,31 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
     []
   );
 
+  function mailSuffix(res?: { ok: boolean; detail?: string } | null) {
+    if (!res) return "";
+    return res.ok ? " (Mail ok)" : ` (Mail-Problem: ${res.detail ?? "unbekannt"})`;
+  }
+
   async function changeStatusInline(
     id: string,
     status: "approved" | "declined"
   ) {
     try {
+      let mailRes: { ok: boolean; detail?: string } | null = null;
       if (status === "approved") {
         const b = rows.find((x) => x.id === id);
         if (!b) throw new Error("Anfrage nicht gefunden.");
-        await approveBooking(b);
+        mailRes = await approveBooking(b);
       } else {
-        await declineBooking(id);
+        mailRes = await declineBooking(id);
       }
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+      flash(
+        "success",
+        (status === "approved" ? "Anfrage bestätigt." : "Anfrage abgelehnt.") + mailSuffix(mailRes)
+      );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Aktion fehlgeschlagen.");
+      flash("error", e instanceof Error ? e.message : "Aktion fehlgeschlagen.");
     }
   }
 
@@ -79,17 +94,22 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
   ) {
     try {
       setBusy(status === "approved" ? "approve" : "decline");
+      let mailRes: { ok: boolean; detail?: string } | null = null;
       if (status === "approved") {
         const b = rows.find((x) => x.id === id);
         if (!b) throw new Error("Anfrage nicht gefunden.");
-        await approveBooking(b);
+        mailRes = await approveBooking(b);
       } else {
-        await declineBooking(id);
+        mailRes = await declineBooking(id);
       }
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
       setSelected((s) => (s ? { ...s, status } : s));
+      flash(
+        "success",
+        (status === "approved" ? "Anfrage bestätigt." : "Anfrage abgelehnt.") + mailSuffix(mailRes)
+      );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Aktion fehlgeschlagen.");
+      flash("error", e instanceof Error ? e.message : "Aktion fehlgeschlagen.");
     } finally {
       setBusy(false);
     }
@@ -98,15 +118,22 @@ export default function BookingsTable({ propertyId, onCancel }: { propertyId: st
   async function handleCancel(b: Booking & { id: string }) {
     // This will be executed after user confirms
     try {
-      await (onCancel ?? cancelBooking)(b);
+      let mailRes: { ok: boolean; detail?: string } | null = null;
+      if (onCancel) {
+        await onCancel(b); // external handler decides what to show
+      } else {
+        mailRes = await cancelBooking(b);
+      }
       setRows(prev => prev.map(x => x.id === b.id ? { ...x, status: "cancelled" } : x));
       setSelected(s => (s && s.id === b.id ? { ...s, status: "cancelled" } : s));
-      // Offer Undo: set back to approved and re-block nights
-      flash("success", "Buchung storniert.", "Rückgängig", async () => {
+      flash("success", "Buchung storniert." + mailSuffix(mailRes), "Rückgängig", async () => {
         try {
-          await approveBooking(b);
+          const res = await approveBooking(b);
           setRows(prev => prev.map(x => x.id === b.id ? { ...x, status: "approved" } : x));
           setSelected(s => (s && s.id === b.id ? { ...s, status: "approved" } : s));
+          if (res && !res.ok) {
+            flash("error", `Rückgängig: Mail-Problem: ${res.detail ?? "unbekannt"}`);
+          }
         } catch (e) {
           flash("error", e instanceof Error ? e.message : "Rückgängig fehlgeschlagen.");
         }

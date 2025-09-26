@@ -32,4 +32,5 @@ sa-keys
 !package.json
 
 backend-php
+config.php
 
