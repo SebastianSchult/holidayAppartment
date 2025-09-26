@@ -1,12 +1,12 @@
+// src/pages/Booking.tsx
 import { useEffect, useMemo, useState } from "react";
-import { listSeasons, listTaxBands, createBookingRequest, isRangeAvailable } from "../lib/db";
+import { listSeasons, listTaxBands, createBookingRequest, isRangeAvailable, listBlockedNights } from "../lib/db";
 import type { Property, Season, TouristTaxBand } from "../lib/schemas";
 import { priceForStay, touristTaxForStay } from "../lib/pricing";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import { de } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
-import { listBlockedNights } from "../lib/db";
 
 // Format a JS Date to YYYY-MM-DD in **local** time (no UTC shift)
 function formatLocalISO(date: Date): string {
@@ -34,7 +34,7 @@ export default function Booking() {
   const plus3 = new Date(today.getTime() + 3 * 86400000);
   const [start, setStart] = useState<string>(formatLocalISO(today));
   const [end, setEnd] = useState<string>(formatLocalISO(plus3));
-  const [adults, setAdults] = useState<number>(2); // Kurtaxe-pflichtig (>=16)
+  const [adults, setAdults] = useState<number>(2); // Kurtaxe-pflichtig (≥16)
   const [children, setChildren] = useState<number>(0); // 0–15 Jahre, keine Kurtaxe
 
   const [range, setRange] = useState<DateRange | undefined>({
@@ -50,6 +50,12 @@ export default function Booking() {
   const [email, setEmail] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
   const [message, setMessage] = useState<string>("");
+
+  // NEU: Anschrift
+  const [street, setStreet] = useState<string>("");
+  const [zip, setZip] = useState<string>("");
+  const [city, setCity] = useState<string>("");
+  const [country, setCountry] = useState<string>("Deutschland");
 
   // Submit-Status
   const [submitting, setSubmitting] = useState(false);
@@ -82,7 +88,7 @@ export default function Booking() {
         t.sort((a, b) => (a.zone || "").localeCompare(b.zone || ""));
         setTaxBands(t);
 
-        console.debug("[booking] init – done");
+        console.debug("[booking] init – done]");
       } catch (e) {
         console.error("[booking] init FAILED", e);
         setError(e instanceof Error ? e.message : "Daten konnten nicht geladen werden.");
@@ -113,7 +119,6 @@ export default function Booking() {
         setRequestedDisabled([]);
       } catch (e) {
         console.error("[booking] listBlockedNights FAILED", e);
-        // Nicht fatal für Formular – nur Info
         setRequestedDisabled([]);
       }
     })();
@@ -212,7 +217,12 @@ export default function Booking() {
         adults: adultsNum,
         children: childrenNum,
         status: "requested",
-        contact: { name: nameClean, email: emailClean, phone: phoneClean },
+        contact: {
+          name: nameClean,
+          email: emailClean,
+          phone: phoneClean,
+          address: { street, zip, city, country },
+        },
         message: messageClean,
         summary: {
           nights,
@@ -242,7 +252,12 @@ export default function Booking() {
               endDate: endISO,
               adults: adultsNum,
               children: childrenNum,
-              contact: { name: nameClean, email: emailClean, phone: phoneClean },
+              contact: {
+                name: nameClean,
+                email: emailClean,
+                phone: phoneClean,
+                address: { street, zip, city, country },
+              },
               message: messageClean,
             }),
           });
@@ -330,6 +345,46 @@ export default function Booking() {
           <Field label="Telefon (optional)">
             <input className="input" value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="+49 …" />
           </Field>
+
+          {/* NEU: Anschrift */}
+          <div className="md:col-span-3 grid gap-4 md:grid-cols-3">
+            <Field label="Straße & Nr.">
+              <input
+                className="input"
+                value={street}
+                onChange={(e)=>setStreet(e.target.value)}
+                placeholder="z. B. Spangerstraße 9"
+                required
+              />
+            </Field>
+            <Field label="PLZ">
+              <input
+                className="input"
+                value={zip}
+                onChange={(e)=>setZip(e.target.value)}
+                placeholder="27476"
+                required
+              />
+            </Field>
+            <Field label="Ort">
+              <input
+                className="input"
+                value={city}
+                onChange={(e)=>setCity(e.target.value)}
+                placeholder="Cuxhaven"
+                required
+              />
+            </Field>
+            <Field label="Land">
+              <input
+                className="input"
+                value={country}
+                onChange={(e)=>setCountry(e.target.value)}
+                placeholder="Deutschland"
+              />
+            </Field>
+          </div>
+
           <div className="md:col-span-3">
             <Field label="Nachricht (optional)">
               <textarea className="input" rows={3} value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="z.B. Ankunftszeit, Fragen …" />

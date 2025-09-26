@@ -40,6 +40,11 @@ export default function OccupancyCalendar({ propertyId }: Props) {
     setTimeout(() => setNotice(null), 3000);
   }
 
+  function mailSuffix(res?: { ok: boolean; detail?: string } | null) {
+    if (!res) return "";
+    return res.ok ? " (Mail ok)" : ` (Mail-Problem: ${res.detail ?? "unbekannt"})`;
+  }
+
   // Confirm modal
   const [confirmState, setConfirmState] = useState<null | { booking: Booking & { id: string } }>(null);
 
@@ -78,18 +83,21 @@ export default function OccupancyCalendar({ propertyId }: Props) {
 
   async function handleCancel(b: Booking & { id: string }) {
     try {
-      await cancelBooking(b);
+      const mailRes = await cancelBooking(b);
       const approved = await listApprovedBookings(propertyId, range.fromISO, range.toISO);
       setBookings(approved);
       const nights = await listBlockedNights(propertyId, range.fromISO, range.toISO);
       setBlocked(nights.map((d) => new Date(d + "T00:00:00")));
-      flash("success", "Buchung storniert.", "Rückgängig", async () => {
+      flash("success", "Buchung storniert." + mailSuffix(mailRes), "Rückgängig", async () => {
         try {
-          await approveBooking(b);
+          const res = await approveBooking(b);
           const approved2 = await listApprovedBookings(propertyId, range.fromISO, range.toISO);
           setBookings(approved2);
           const nights2 = await listBlockedNights(propertyId, range.fromISO, range.toISO);
           setBlocked(nights2.map((d) => new Date(d + "T00:00:00")));
+          if (res && !res.ok) {
+            flash("error", `Rückgängig: Mail-Problem: ${res.detail ?? "unbekannt"}`);
+          }
         } catch (e) {
           flash("error", e instanceof Error ? e.message : "Rückgängig fehlgeschlagen.");
         }

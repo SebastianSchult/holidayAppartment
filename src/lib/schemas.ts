@@ -22,6 +22,15 @@ export const MonthDay = z
   .string()
   .regex(/^\d{2}-\d{2}$/, "Bitte als MM-DD angeben (z. B. 01-01 für 1. Januar)");
 
+/** Allgemeine Anschrift (optional, frei verwendbar) */
+export const AddressSchema = z.object({
+  street: z.string().optional(),
+  zip: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+});
+export type Address = z.infer<typeof AddressSchema>;
+
 /** Ein wiederkehrender Zeitraum innerhalb eines Jahres, endMD ist exklusiv */
 export const TouristTaxRangeSchema = z.object({
   startMD: MonthDay, // inklusiv
@@ -34,12 +43,7 @@ export const PropertySchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2),
   slug: z.string().min(2), // für URLs
-  address: z.object({
-    street: z.string().optional(),
-    zip: z.string().optional(),
-    city: z.string().optional(),
-    country: z.string().optional(),
-  }).default({}),
+  address: AddressSchema.default({}),
   maxGuests: z.number().int().min(1),
   checkInHour: z.number().int().min(0).max(23).default(15),
   checkOutHour: z.number().int().min(0).max(23).default(10),
@@ -89,6 +93,7 @@ export const BookingSchema = z.object({
     name: z.string().min(1),
     email: z.string().email(),
     phone: z.string().optional().default(""),
+    address: AddressSchema.optional().default({}),
   }),
   message: z.string().optional().default(""),
 

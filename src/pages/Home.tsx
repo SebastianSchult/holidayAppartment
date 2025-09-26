@@ -3,7 +3,7 @@ export default function Home() {
     <section className="relative w-full">
   <div className="relative h-[52vh] md:h-[64vh] w-full overflow-hidden">
     <img
-      src="/hero/luftaufnahmeCuxhaven.png"
+      src="/hero/cuxhaven-591391_1280.jpg"
       alt="Meerblick"
       className="h-full w-full object-cover"
       loading="eager"
@@ -39,7 +39,7 @@ export default function Home() {
   <section className="bg-[color:var(--sand,#f4ede4)] mt-8 md:mt-12 py-8 md:py-12">
   <div className="mx-auto grid max-w-6xl gap-4 px-4 md:grid-cols-4">
     {[
-      { t:'Strandnah', d:'5 Minuten zu Fuß' },
+      { t:'Strandnah', d:'20 Minuten zu Fuß' },
       { t:'Kostenloses Parken', d:'Privatstellplatz' },
       { t:'Haustiere erlaubt', d:'auf Anfrage' },
       { t:'WLAN & Smart-TV', d:'inklusive' },

@@ -6,6 +6,8 @@ import Booking from "../pages/Booking";
 import AdminDashboard from "../pages/AdminDashboard";
 import Login from "../pages/Login";
 import RequireAdmin from "../components/admin/auth/RequireAdmin";
+import Imprint from "../pages/Imprint";
+import Privacy from "../pages/Privacy";
 
 export function AppRoutes() {
   return (
@@ -15,6 +17,8 @@ export function AppRoutes() {
       <Route path="/prices" element={<Prices />} />
       <Route path="/book" element={<Booking />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/impressum" element={<Imprint />} />
+      <Route path="/datenschutz" element={<Privacy />} />
       <Route path="/admin/login" element={<Login />} />
       {/* Admin guard wrapper */}
       <Route element={<RequireAdmin />}>
