@@ -5,6 +5,13 @@ import type { Booking } from "../../lib/schemas";
 type OnCancelResult = void | { ok: boolean; detail?: string };
 type OnCancelFn = (b: Booking & { id: string }) => Promise<OnCancelResult>;
 
+const STATUS_ORDER: Readonly<Record<string, number>> = {
+  requested: 0,
+  approved: 1,
+  declined: 2,
+  cancelled: 3,
+};
+
 export default function BookingsTable(
   { propertyId, onCancel }: { propertyId: string; onCancel?: OnCancelFn }
 ) {
@@ -185,7 +192,6 @@ export default function BookingsTable(
   const isCancelled = (s: string) => ["cancelled", "canceled", "storniert"].includes(norm(s));
 
   // Derived data for filtering, sorting, pagination
-  const statusOrder: Record<string, number> = { requested: 0, approved: 1, declined: 2, cancelled: 3 };
 
   const filteredRows = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -203,8 +209,8 @@ export default function BookingsTable(
       if (sortBy === "startDate") {
         cmp = a.startDate.localeCompare(b.startDate);
       } else {
-        const sa = statusOrder[(a.status || "").toLowerCase()] ?? 99;
-        const sb = statusOrder[(b.status || "").toLowerCase()] ?? 99;
+        const sa = STATUS_ORDER[(a.status || "").toLowerCase()] ?? 99;
+        const sb = STATUS_ORDER[(b.status || "").toLowerCase()] ?? 99;
         cmp = sa - sb;
       }
       return sortDir === "asc" ? cmp : -cmp;
