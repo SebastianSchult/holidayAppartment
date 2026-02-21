@@ -11,7 +11,6 @@ export function NavBar() {
             { to: "/gallery", label: "Galerie" },
             { to: "/prices", label: "Preise" },
             { to: "/book", label: "Buchen" },
-            { to: "/admin", label: "Admin" },
           ].map(({ to, label }) => (
             <NavLink
               key={to}
