@@ -1,19 +1,25 @@
 name: CI
 
 on:
-  push:
   pull_request:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
-    name: Frontend
+    name: Frontend (lint, build)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -28,22 +34,22 @@ jobs:
         run: npm run build:frontend
 
   functions:
-    name: Functions
+    name: Functions (lint, build)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
       - name: Install (functions)
-        run: npm ci
-        working-directory: functions
+        run: npm --prefix functions ci
 
       - name: Lint (functions)
         run: npm --prefix functions run lint
