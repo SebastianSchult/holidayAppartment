@@ -28,10 +28,10 @@ jobs:
         run: npm ci
 
       - name: Lint (frontend)
-        run: npm run lint
+        run: npm run lint:frontend
 
       - name: Build (frontend)
-        run: npm run build
+        run: npm run build:frontend
 
   functions:
     name: Functions (lint, build)
