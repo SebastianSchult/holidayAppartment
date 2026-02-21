@@ -1,17 +1,46 @@
 const fmt = (d: string) => d.split("-").reverse().join(".");
 
-export function bookingRequestOwner(p: any) {
+type BookingRequestOwnerPayload = {
+  propertyId?: string;
+  startDate: string;
+  endDate: string;
+  adults: number;
+  children: number;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  message?: string;
+  summary?: unknown;
+};
+
+type BookingRequestGuestAckPayload = {
+  startDate: string;
+  endDate: string;
+  adults?: number;
+  children?: number;
+  contactName?: string;
+};
+
+type BookingStatusGuestPayload = {
+  startDate: string;
+  endDate: string;
+  adults?: number;
+  children?: number;
+  contactName?: string;
+};
+
+export function bookingRequestOwner(p: BookingRequestOwnerPayload) {
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;line-height:1.6">
     <h2>Neue Buchungsanfrage</h2>
     <p><strong>Zeitraum:</strong> ${fmt(p.startDate)} – ${fmt(p.endDate)}</p>
     <p><strong>Gäste:</strong> ${p.adults} Erw., ${p.children} Kinder</p>
     <p><strong>Kontakt:</strong> ${p.contactName || "-"} &lt;${p.contactEmail || "-"}&gt; ${p.contactPhone ? "• " + p.contactPhone : ""}</p>
-    ${p.message ? `<p><strong>Nachricht:</strong><br>${String(p.message).replace(/\n/g,"<br>")}</p>` : ""}
+    ${p.message ? `<p><strong>Nachricht:</strong><br>${String(p.message).replace(/\n/g, "<br>")}</p>` : ""}
   </div>`;
 }
 
-export function bookingRequestGuestAck(p: any) {
+export function bookingRequestGuestAck(p: BookingRequestGuestAckPayload) {
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;line-height:1.6">
     <h2>Ihre Anfrage ist eingegangen</h2>
@@ -22,7 +51,7 @@ export function bookingRequestGuestAck(p: any) {
   </div>`;
 }
 
-export function bookingApprovedGuest(p: any) {
+export function bookingApprovedGuest(p: BookingStatusGuestPayload) {
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;line-height:1.6">
     <h2>Buchung bestätigt</h2>
@@ -31,7 +60,7 @@ export function bookingApprovedGuest(p: any) {
   </div>`;
 }
 
-export function bookingDeclinedGuest(p: any) {
+export function bookingDeclinedGuest(p: BookingStatusGuestPayload) {
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;line-height:1.6">
     <h2>Ihre Anfrage</h2>
@@ -40,7 +69,7 @@ export function bookingDeclinedGuest(p: any) {
   </div>`;
 }
 
-export function bookingCancelledGuest(p: any) {
+export function bookingCancelledGuest(p: BookingStatusGuestPayload) {
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;line-height:1.6">
     <h2>Buchung storniert</h2>
