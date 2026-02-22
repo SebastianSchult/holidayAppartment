@@ -22,15 +22,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
 .env
 .env.production
-
+.env.*
+!.env.example
 
 # Secrets nicht committen
-sa-keys
-*.json
-!package.json
+sa-keys/
+sa-keys/**/*.json
+*service-account*.json
 
-backend-php
-config.php
+# Repository overrides for backend-php (global gitignore may ignore this path)
+!backend-php/
+backend-php/*
+!backend-php/config.example.php
 
+# Private server config (use backend-php/config.example.php as template)
+backend-php/config.php
