@@ -5,62 +5,15 @@ import { db } from "../lib/firebase";
 import type { Property, Season, TouristTaxBand, Booking, Role } from "./schemas";
 import { COL } from "./schemas";
 
-const MAIL_API = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_MAIL_API_URL;
-const MAIL_API_KEY = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_MAIL_API_KEY;
-const OWNER_EMAIL = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_OWNER_EMAIL;
-
 async function sendAdminActionMail(
   action: "approved" | "declined" | "cancelled",
   booking: (Booking & { id: string }),
   propertyName?: string
 ): Promise<{ ok: boolean; detail?: string }> {
-  if (!MAIL_API || !MAIL_API_KEY) {
-    console.warn("[mail] skipped – MAIL_API or API_KEY missing");
-    return { ok: false, detail: "mail_api_missing" };
-  }
-  try {
-    const payload = {
-      type: "admin_action",
-      action,
-      bookingId: booking.id,
-      propertyId: booking.propertyId,
-      startDate: booking.startDate,
-      endDate: booking.endDate,
-      adults: booking.adults,
-      children: booking.children,
-      contact: booking.contact,
-      message: booking.message ?? "",
-      status: booking.status,
-      notify: { guest: booking.contact?.email, owner: OWNER_EMAIL },
-      propertyName,
-    };
-    const resp = await fetch(MAIL_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Api-Key": MAIL_API_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-    const text = await resp.text();
-    interface MailApiResponse {
-      ok?: boolean;
-      detail?: string;
-    }
-    let json: MailApiResponse | null = null;
-    try { json = text ? JSON.parse(text) : null; } catch {
-      // ignore JSON parse errors
-    }
-    if (!resp.ok) {
-      const detail = json?.detail ? JSON.stringify(json.detail) : text || String(resp.status);
-      console.warn("[mail] admin action failed:", resp.status, detail);
-      return { ok: false, detail };
-    }
-    return { ok: json?.ok ?? true, detail: json?.detail ? JSON.stringify(json.detail) : undefined };
-  } catch (e) {
-    console.warn("[mail] admin action error:", e);
-    return { ok: false, detail: e instanceof Error ? e.message : "fetch_failed" };
-  }
+  // Mailversand passiert serverseitig über Firestore Trigger (Cloud Functions).
+  // Kein API-Key im Frontend.
+  console.info("[mail] %s handled by server-side trigger (booking=%s, property=%s)", action, booking.id, propertyName ?? booking.propertyId);
+  return { ok: true, detail: "handled_by_server_trigger" };
 }
 
 /** Properties */
