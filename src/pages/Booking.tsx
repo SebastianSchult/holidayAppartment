@@ -353,8 +353,8 @@ export default function Booking() {
       </header>
 
       {/* Formular */}
-      <form id="booking-form" className="grid gap-4 xl:grid-cols-4" onSubmit={submitRequest}>
-        <div className="xl:col-span-4">
+      <form id="booking-form" className="grid gap-4" onSubmit={submitRequest}>
+        <div>
           <Field label="Zeitraum wählen">
             <DayPicker
               mode="range"
@@ -375,7 +375,7 @@ export default function Booking() {
         </Field>
 
         {/* Kontakt */}
-        <div className="xl:col-span-4 grid gap-4 xl:grid-cols-3">
+        <div className="grid gap-4">
           <Field label="Name">
             <input className="input" value={name} onChange={(e)=>setName(e.target.value)} placeholder="Vor- und Nachname" />
           </Field>
@@ -387,7 +387,7 @@ export default function Booking() {
           </Field>
 
           {/* NEU: Anschrift */}
-          <div className="xl:col-span-3 grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-4">
             <Field label="Straße & Nr.">
               <input
                 className="input"
@@ -422,14 +422,14 @@ export default function Booking() {
             </Field>
           </div>
 
-          <div className="xl:col-span-3">
+          <div>
             <Field label="Nachricht (optional)">
               <textarea className="input" rows={3} value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="z.B. Ankunftszeit, Fragen …" />
             </Field>
           </div>
         </div>
       {/* Ergebnis */}
-      <div className="xl:col-span-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
           <p className="text-slate-600">Laden …</p>
         ) : error ? (
@@ -437,7 +437,7 @@ export default function Booking() {
         ) : nights <= 0 ? (
           <p className="text-slate-600">Bitte ein gültiges Datum wählen (mindestens eine Nacht).</p>
         ) : calc ? (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4">
             <div className="space-y-1">
               <h3 className="text-lg font-semibold">Zusammenfassung</h3>
               <Row label="Nächte" value={String(nights)} />
@@ -457,7 +457,7 @@ export default function Booking() {
                 <li>Kurtaxe je Nacht pro zahlender Person (≥16) gemäß Kurtaxe-Band.</li>
               </ul>
             </div>
-            <div className="xl:col-span-2">
+            <div>
               <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 open:bg-white">
                 <summary className="cursor-pointer select-none font-medium">Preis je Nacht anzeigen</summary>
                 <div className="mt-2 overflow-x-auto">
@@ -508,19 +508,19 @@ export default function Booking() {
         )}
       </div>
       {avail === "checking" && (
-        <p className="xl:col-span-4 text-sm text-slate-500">Verfügbarkeit wird geprüft …</p>
+        <p className="text-sm text-slate-500">Verfügbarkeit wird geprüft …</p>
       )}
       {avail === "available" && (
-        <p className="xl:col-span-4 text-sm text-green-700">Zeitraum ist aktuell verfügbar.</p>
+        <p className="text-sm text-green-700">Zeitraum ist aktuell verfügbar.</p>
       )}
       {avail === "unavailable" && (
-        <p className="xl:col-span-4 text-sm text-red-700">Zeitraum ist leider bereits belegt.</p>
+        <p className="text-sm text-red-700">Zeitraum ist leider bereits belegt.</p>
       )}
       {nights > 0 && nights < MIN_NIGHTS && (
-        <p className="xl:col-span-4 text-sm text-amber-700">Mindestaufenthalt: {MIN_NIGHTS} Nächte.</p>
+        <p className="text-sm text-amber-700">Mindestaufenthalt: {MIN_NIGHTS} Nächte.</p>
       )}
 
-      <div className="xl:col-span-4 space-y-2 xl:text-right">
+      <div className="space-y-2">
         <button
           type="submit"
           className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60"
