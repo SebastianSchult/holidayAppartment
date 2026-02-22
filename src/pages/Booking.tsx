@@ -429,7 +429,7 @@ export default function Booking() {
           </div>
         </div>
       {/* Ergebnis */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
           <p className="text-slate-600">Laden …</p>
         ) : error ? (
@@ -508,19 +508,19 @@ export default function Booking() {
         )}
       </div>
       {avail === "checking" && (
-        <p className="text-sm text-slate-500">Verfügbarkeit wird geprüft …</p>
+        <p className="lg:col-span-4 text-sm text-slate-500">Verfügbarkeit wird geprüft …</p>
       )}
       {avail === "available" && (
-        <p className="text-sm text-green-700">Zeitraum ist aktuell verfügbar.</p>
+        <p className="lg:col-span-4 text-sm text-green-700">Zeitraum ist aktuell verfügbar.</p>
       )}
       {avail === "unavailable" && (
-        <p className="text-sm text-red-700">Zeitraum ist leider bereits belegt.</p>
+        <p className="lg:col-span-4 text-sm text-red-700">Zeitraum ist leider bereits belegt.</p>
       )}
       {nights > 0 && nights < MIN_NIGHTS && (
-        <p className="text-sm text-amber-700">Mindestaufenthalt: {MIN_NIGHTS} Nächte.</p>
+        <p className="lg:col-span-4 text-sm text-amber-700">Mindestaufenthalt: {MIN_NIGHTS} Nächte.</p>
       )}
 
-      <div className="space-y-2 lg:text-right">
+      <div className="lg:col-span-4 space-y-2 lg:text-right">
         <button
           type="submit"
           className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60"
