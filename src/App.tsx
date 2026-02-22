@@ -1,7 +1,11 @@
 import { NavBar } from "./components/NavBar";
 import { AppRoutes } from "./app/routes";
+import { useLocation } from "react-router-dom";
 
 export default function App() {
+  const { pathname } = useLocation();
+  const isBookingPage = pathname.startsWith("/book");
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <NavBar />
@@ -21,12 +25,14 @@ export default function App() {
 
       {/* Mobile Footer (fixed) */}
       <footer className="fixed inset-x-0 bottom-0 z-40 block bg-white/95 p-3 shadow md:hidden">
-        <button
-          onClick={() => location.assign("/book")}
-          className="w-full rounded-xl bg-[color:var(--ocean,#0e7490)] py-3 text-center font-semibold text-white"
-        >
-          Jetzt buchen
-        </button>
+        {!isBookingPage && (
+          <button
+            onClick={() => location.assign("/book")}
+            className="w-full rounded-xl bg-[color:var(--ocean,#0e7490)] py-3 text-center font-semibold text-white"
+          >
+            Jetzt buchen
+          </button>
+        )}
         <div className="mt-2 text-center text-xs text-slate-500">
           <a href="/impressum" className="mx-2 underline">Impressum</a>
           <span aria-hidden>·</span>
