@@ -67,7 +67,7 @@ export default function Booking() {
   function flash(n: Notice) {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
     setNotice(n);
-    toastTimer.current = window.setTimeout(() => setNotice(null), 3500);
+    toastTimer.current = window.setTimeout(() => setNotice(null), 8000);
   }
 
   // Verfügbarkeits-Prüfung
@@ -192,14 +192,25 @@ export default function Booking() {
     return () => { alive = false; clearTimeout(t); };
   }, [propertyId, start, end, nights]);
 
-  async function submitRequest(e: React.MouseEvent<HTMLButtonElement>) {
+  async function submitRequest(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!propertyId || !calc) return;
+    if (!propertyId || !calc) {
+      flash({ type: "error", text: "Bitte zuerst einen gültigen Zeitraum auswählen." });
+      return;
+    }
+    if (avail !== "available") {
+      flash({ type: "error", text: "Der gewählte Zeitraum ist aktuell nicht verfügbar." });
+      return;
+    }
     setSubmitting(true);
-    console.debug("[booking] submit →", { propertyId, start, end, adults, children, name, email });
+    console.log("[booking] submit →", { propertyId, start, end, adults, children, name, email });
     try {
       if (!name.trim() || !email.trim()) {
         flash({ type: "error", text: "Bitte Name und E-Mail angeben." });
+        return;
+      }
+      if (!street.trim() || !zip.trim() || !city.trim()) {
+        flash({ type: "error", text: "Bitte Straße, PLZ und Ort angeben." });
         return;
       }
 
@@ -241,13 +252,68 @@ export default function Booking() {
           currency,
         },
       });
-      console.debug("[booking] submit – createBookingRequest ✓");
+      console.log("[booking] submit – createBookingRequest ✓");
 
-        // Mailversand läuft serverseitig über Firestore Trigger (Cloud Functions).
-        // Kein API-Key im Frontend.
-        console.debug("[mail] handled by server-side trigger");
+      let mailSent = false;
+      let mailErrorText = "";
 
-      flash({ type: "success", text: "Vielen Dank! Deine Anfrage wurde übermittelt. Wir melden uns zeitnah." });
+      // Ohne Blaze: Mailversand direkt über den PHP-Endpoint (ohne Frontend-API-Key).
+      try {
+        const mailUrl = import.meta.env.VITE_MAIL_API_URL as string | undefined;
+        if (!mailUrl) {
+          mailErrorText = "VITE_MAIL_API_URL ist nicht gesetzt.";
+          console.warn("[mail] skipped – VITE_MAIL_API_URL not set");
+        } else {
+          console.log("[mail] POST →", mailUrl);
+          const resp = await fetch(mailUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "booking_request",
+              propertyId: String(propertyId),
+              propertyName,
+              startDate: startISO,
+              endDate: endISO,
+              adults: adultsNum,
+              children: childrenNum,
+              contact: {
+                name: nameClean,
+                email: emailClean,
+                phone: phoneClean,
+                address: { street, zip, city, country },
+              },
+              message: messageClean,
+            }),
+          });
+
+          const payload = await resp.json().catch(() => null) as
+            | { ok?: boolean; error?: string; status?: { owner?: string; guest?: string } }
+            | null;
+
+          mailSent = resp.ok && payload?.ok !== false;
+          if (!mailSent) {
+            const ownerStatus = payload?.status?.owner;
+            const guestStatus = payload?.status?.guest;
+            const serverError = payload?.error;
+            mailErrorText = [serverError, ownerStatus, guestStatus].filter(Boolean).join(" | ");
+            if (!mailErrorText) mailErrorText = `HTTP ${resp.status}`;
+            console.warn("[mail] send failed", resp.status, payload);
+          } else {
+            console.log("[mail] send ok", payload);
+          }
+        }
+      } catch (err) {
+        mailErrorText = err instanceof Error ? err.message : "fetch_failed";
+        console.warn("[mail] fetch error", err);
+      }
+
+      if (mailSent) {
+        flash({ type: "success", text: "Vielen Dank! Deine Anfrage wurde übermittelt und die Bestätigungsmail wurde versendet." });
+      } else {
+        flash({ type: "error", text: `Anfrage gespeichert, aber Mailversand fehlgeschlagen (${mailErrorText || "unbekannter Fehler"}).` });
+      }
     } catch (err) {
       console.error("[booking] submit FAILED", err);
       flash({ type: "error", text: err instanceof Error ? err.message : "Anfrage konnte nicht gesendet werden." });
@@ -287,7 +353,7 @@ export default function Booking() {
       </header>
 
       {/* Formular */}
-      <form className="grid gap-4 md:grid-cols-4">
+      <form id="booking-form" className="grid gap-4 md:grid-cols-4" onSubmit={submitRequest}>
         <div className="md:col-span-4">
           <Field label="Zeitraum wählen">
             <DayPicker
@@ -328,7 +394,6 @@ export default function Booking() {
                 value={street}
                 onChange={(e)=>setStreet(e.target.value)}
                 placeholder="z. B. Spangerstraße 9"
-                required
               />
             </Field>
             <Field label="PLZ">
@@ -337,7 +402,6 @@ export default function Booking() {
                 value={zip}
                 onChange={(e)=>setZip(e.target.value)}
                 placeholder="27476"
-                required
               />
             </Field>
             <Field label="Ort">
@@ -346,7 +410,6 @@ export default function Booking() {
                 value={city}
                 onChange={(e)=>setCity(e.target.value)}
                 placeholder="Cuxhaven"
-                required
               />
             </Field>
             <Field label="Land">
@@ -365,8 +428,6 @@ export default function Booking() {
             </Field>
           </div>
         </div>
-      </form>
-
       {/* Ergebnis */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
@@ -461,13 +522,14 @@ export default function Booking() {
 
       <div className="text-right space-y-2">
         <button
-          onClick={submitRequest}
+          type="submit"
           className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60"
-          disabled={!calc || nights <= 0 || nights < MIN_NIGHTS || submitting || avail !== "available"}
+          disabled={!calc || nights <= 0 || nights < MIN_NIGHTS || submitting}
         >
           {submitting ? "Sende …" : "Anfrage senden"}
         </button>
       </div>
+      </form>
       {notice && (
         <div
           role="status"
