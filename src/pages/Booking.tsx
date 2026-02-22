@@ -353,8 +353,8 @@ export default function Booking() {
       </header>
 
       {/* Formular */}
-      <form id="booking-form" className="grid gap-4 lg:grid-cols-4" onSubmit={submitRequest}>
-        <div className="lg:col-span-4">
+      <form id="booking-form" className="grid gap-4" onSubmit={submitRequest}>
+        <div>
           <Field label="Zeitraum wählen">
             <DayPicker
               mode="range"
@@ -375,7 +375,7 @@ export default function Booking() {
         </Field>
 
         {/* Kontakt */}
-        <div className="lg:col-span-4 grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4">
           <Field label="Name">
             <input className="input" value={name} onChange={(e)=>setName(e.target.value)} placeholder="Vor- und Nachname" />
           </Field>
@@ -387,7 +387,7 @@ export default function Booking() {
           </Field>
 
           {/* NEU: Anschrift */}
-          <div className="lg:col-span-3 grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4">
             <Field label="Straße & Nr.">
               <input
                 className="input"
@@ -422,7 +422,7 @@ export default function Booking() {
             </Field>
           </div>
 
-          <div className="lg:col-span-3">
+          <div>
             <Field label="Nachricht (optional)">
               <textarea className="input" rows={3} value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="z.B. Ankunftszeit, Fragen …" />
             </Field>
@@ -437,7 +437,7 @@ export default function Booking() {
         ) : nights <= 0 ? (
           <p className="text-slate-600">Bitte ein gültiges Datum wählen (mindestens eine Nacht).</p>
         ) : calc ? (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4">
             <div className="space-y-1">
               <h3 className="text-lg font-semibold">Zusammenfassung</h3>
               <Row label="Nächte" value={String(nights)} />
@@ -457,7 +457,7 @@ export default function Booking() {
                 <li>Kurtaxe je Nacht pro zahlender Person (≥16) gemäß Kurtaxe-Band.</li>
               </ul>
             </div>
-            <div className="lg:col-span-2">
+            <div>
               <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 open:bg-white">
                 <summary className="cursor-pointer select-none font-medium">Preis je Nacht anzeigen</summary>
                 <div className="mt-2 overflow-x-auto">
@@ -520,7 +520,7 @@ export default function Booking() {
         <p className="text-sm text-amber-700">Mindestaufenthalt: {MIN_NIGHTS} Nächte.</p>
       )}
 
-      <div className="space-y-2 lg:text-right">
+      <div className="space-y-2">
         <button
           type="submit"
           className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60"
