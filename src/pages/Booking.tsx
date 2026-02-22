@@ -259,50 +259,49 @@ export default function Booking() {
 
       // Ohne Blaze: Mailversand direkt über den PHP-Endpoint (ohne Frontend-API-Key).
       try {
-        const mailUrl = import.meta.env.VITE_MAIL_API_URL as string | undefined;
-        if (!mailUrl) {
-          mailErrorText = "VITE_MAIL_API_URL ist nicht gesetzt.";
-          console.warn("[mail] skipped – VITE_MAIL_API_URL not set");
-        } else {
-          console.log("[mail] POST →", mailUrl);
-          const resp = await fetch(mailUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
+        const configuredMailUrl = (import.meta.env.VITE_MAIL_API_URL as string | undefined)?.trim();
+        const mailUrl = configuredMailUrl || "/api/send-booking-mail.php";
+        if (!configuredMailUrl) {
+          console.warn("[mail] VITE_MAIL_API_URL not set, fallback to /api/send-booking-mail.php");
+        }
+        console.log("[mail] POST →", mailUrl);
+        const resp = await fetch(mailUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "booking_request",
+            propertyId: String(propertyId),
+            propertyName,
+            startDate: startISO,
+            endDate: endISO,
+            adults: adultsNum,
+            children: childrenNum,
+            contact: {
+              name: nameClean,
+              email: emailClean,
+              phone: phoneClean,
+              address: { street, zip, city, country },
             },
-            body: JSON.stringify({
-              type: "booking_request",
-              propertyId: String(propertyId),
-              propertyName,
-              startDate: startISO,
-              endDate: endISO,
-              adults: adultsNum,
-              children: childrenNum,
-              contact: {
-                name: nameClean,
-                email: emailClean,
-                phone: phoneClean,
-                address: { street, zip, city, country },
-              },
-              message: messageClean,
-            }),
-          });
+            message: messageClean,
+          }),
+        });
 
-          const payload = await resp.json().catch(() => null) as
-            | { ok?: boolean; error?: string; status?: { owner?: string; guest?: string } }
-            | null;
+        const payload = await resp.json().catch(() => null) as
+          | { ok?: boolean; error?: string; status?: { owner?: string; guest?: string } }
+          | null;
 
-          mailSent = resp.ok && payload?.ok !== false;
-          if (!mailSent) {
-            const ownerStatus = payload?.status?.owner;
-            const guestStatus = payload?.status?.guest;
-            const serverError = payload?.error;
-            mailErrorText = [serverError, ownerStatus, guestStatus].filter(Boolean).join(" | ");
-            if (!mailErrorText) mailErrorText = `HTTP ${resp.status}`;
-            console.warn("[mail] send failed", resp.status, payload);
-          } else {
-            console.log("[mail] send ok", payload);
-          }
+        mailSent = resp.ok && payload?.ok !== false;
+        if (!mailSent) {
+          const ownerStatus = payload?.status?.owner;
+          const guestStatus = payload?.status?.guest;
+          const serverError = payload?.error;
+          mailErrorText = [serverError, ownerStatus, guestStatus].filter(Boolean).join(" | ");
+          if (!mailErrorText) mailErrorText = `HTTP ${resp.status}`;
+          console.warn("[mail] send failed", resp.status, payload);
+        } else {
+          console.log("[mail] send ok", payload);
         }
       } catch (err) {
         mailErrorText = err instanceof Error ? err.message : "fetch_failed";
