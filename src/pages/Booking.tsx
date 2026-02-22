@@ -243,44 +243,9 @@ export default function Booking() {
       });
       console.debug("[booking] submit – createBookingRequest ✓");
 
-      // Nach erfolgreichem Speichern: Mail-Endpoint aufrufen (nicht blockierend für den UX-Flow)
-      try {
-        const mailUrl = import.meta.env.VITE_MAIL_API_URL as string | undefined;
-        const mailKey = import.meta.env.VITE_MAIL_API_KEY as string | undefined;
-        if (mailUrl && mailKey) {
-          const resp = await fetch(mailUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Api-Key": mailKey,
-            },
-            body: JSON.stringify({
-              propertyId: String(propertyId),
-              propertyName,
-              startDate: startISO,
-              endDate: endISO,
-              adults: adultsNum,
-              children: childrenNum,
-              contact: {
-                name: nameClean,
-                email: emailClean,
-                phone: phoneClean,
-                address: { street, zip, city, country },
-              },
-              message: messageClean,
-            }),
-          });
-          console.debug("[booking] mail resp", resp.status);
-          if (!resp.ok) {
-            const errJson = await resp.json().catch(() => ({} as Record<string, unknown>));
-            console.warn("[mail] send failed", resp.status, errJson);
-          }
-        } else {
-          console.info("[mail] skipped – VITE_MAIL_API_URL / VITE_MAIL_API_KEY not set");
-        }
-      } catch (e) {
-        console.warn("[mail] fetch error", e);
-      }
+        // Mailversand läuft serverseitig über Firestore Trigger (Cloud Functions).
+        // Kein API-Key im Frontend.
+        console.debug("[mail] handled by server-side trigger");
 
       flash({ type: "success", text: "Vielen Dank! Deine Anfrage wurde übermittelt. Wir melden uns zeitnah." });
     } catch (err) {
