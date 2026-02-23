@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+## Common Scripts
+
+- `npm run lint` runs frontend linting via the root flat-config setup (`npm run lint:frontend`).
+- `npm run build` builds the frontend bundle.
+- `npm run ci` runs frontend + functions lint/build checks in one command.
+
 ## Mail Security Flow (No Frontend API Key)
 
 - `booking_request` is sent from the frontend to `VITE_MAIL_API_URL` (fallback: `/api/send-booking-mail.php`) without a secret header.

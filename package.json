@@ -10,7 +10,7 @@
     "build:frontend": "vite build",
     "lint:functions": "npm --prefix functions run lint",
     "build:functions": "npm --prefix functions run build",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint \"src/**/*.{ts,tsx}\"",
+    "lint": "npm run lint:frontend",
     "build": "npm run build:frontend",
     "ci": "npm run lint:frontend && npm run build:frontend && npm run lint:functions && npm run build:functions"
   },
