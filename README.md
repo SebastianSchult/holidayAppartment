@@ -197,6 +197,12 @@ Jobs:
 - `Frontend (lint, build)`
 - `Functions (lint, build)`
 
+Dedicated browser-level regression workflow:
+
+- `.github/workflows/e2e.yml`
+  - Job: `E2E (Playwright)`
+  - Uploads `playwright-report/` and `test-results/` as artifacts on failure
+
 Recommended branch workflow:
 1. `git switch main && git pull --ff-only`
 2. `git switch -c <issue-branch>`
