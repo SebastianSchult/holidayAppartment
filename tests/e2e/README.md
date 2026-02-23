@@ -6,6 +6,7 @@ This folder defines the baseline E2E strategy for the project.
 
 - `public/`:
   - smoke coverage for public routes (`/`, `/gallery`, `/prices`, `/book`)
+  - checks route render + key UI blocks + no uncaught runtime errors (`pageerror` / `console.error`)
 - `booking/`:
   - planned happy-path booking request flow
 - `admin/`:
