@@ -434,18 +434,22 @@ export default function Booking() {
         ) : calc ? (
           <div className="grid gap-4">
             <div className="space-y-1">
-              <h3 className="text-lg font-semibold">Zusammenfassung</h3>
-              <Row label="Nächte" value={String(nights)} />
-              <Row label="Übernachtungen" value={fmt.format(calc.base.nightsTotal)} />
-              <Row label="Endreinigung" value={fmt.format(calc.base.cleaningFee)} />
-              <Row label="Kurtaxe (Erwachsene)" value={fmt.format(calc.tax.total)} />
+              <h2 className="text-lg font-semibold">Zusammenfassung</h2>
+              <dl className="space-y-1">
+                <SummaryItem label="Nächte" value={String(nights)} />
+                <SummaryItem label="Übernachtungen" value={fmt.format(calc.base.nightsTotal)} />
+                <SummaryItem label="Endreinigung" value={fmt.format(calc.base.cleaningFee)} />
+                <SummaryItem label="Kurtaxe (Erwachsene)" value={fmt.format(calc.tax.total)} />
+              </dl>
               <div className="mt-2 h-px bg-slate-200" />
-              <Row label="Gesamt" value={fmt.format(calc.grandTotal)} bold />
+              <dl>
+                <SummaryItem label="Gesamt" value={fmt.format(calc.grandTotal)} bold />
+              </dl>
               <p className="mt-2 text-xs text-slate-500">Kurtaxe ab 16 Jahren. Saisonpreise inkl. USt., Kurtaxe nach Ortsrecht.</p>
             </div>
 
             <div className="space-y-2">
-              <h4 className="font-medium">Hinweise</h4>
+              <h3 className="font-medium">Hinweise</h3>
               <ul className="list-disc pl-5 text-sm text-slate-700">
                 <li><strong>Ende exkl.:</strong> Die Abreise-Nacht ist nicht berechnet.</li>
                 <li>In definierten Saisons gilt der jeweilige Nachtpreis. Außerhalb gilt der Standardpreis.</li>
@@ -563,11 +567,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function SummaryItem({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className={["flex items-start justify-between gap-3", bold ? "font-semibold" : ""].filter(Boolean).join(" ") }>
-      <span className="min-w-0">{label}</span>
-      <span className="shrink-0 text-right">{value}</span>
+      <dt className="min-w-0">{label}</dt>
+      <dd className="shrink-0 text-right">{value}</dd>
     </div>
   );
 }
