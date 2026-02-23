@@ -394,34 +394,49 @@ export async function listUnavailableNights(propertyId: string, fromISO: string,
 }
 
 /**
- * Liefert bestätigte Buchungen (clientseitig nach Zeitraum gefiltert).
- * Hinweis: Wir nutzen listBookings() und filtern, um Index-Anforderungen zu sparen.
+ * Liefert bestätigte Buchungen.
+ * Query-Strategie:
+ * - immer serverseitig per propertyId + status
+ * - optional zusätzlich Overlap-Filter direkt in Firestore:
+ *   (startDate < toISO) && (endDate > fromISO)
  */
 export async function listApprovedBookings(
   propertyId: string,
   fromISO?: string,
   toISO?: string
 ): Promise<(Booking & { id: string })[]> {
-  const all = await listBookings(propertyId);
-  const approved = all.filter((b) => b.status === "approved");
-  if (!fromISO || !toISO) return approved;
-  // Überschneidung: (b.startDate < toISO) && (b.endDate > fromISO)
-  return approved.filter((b) => b.startDate < toISO && b.endDate > fromISO);
+  const constraints = [
+    where("propertyId", "==", propertyId),
+    where("status", "==", "approved"),
+    ...(fromISO && toISO
+      ? [where("startDate", "<", toISO), where("endDate", ">", fromISO)]
+      : []),
+  ];
+  const snap = await getDocs(query(collection(db, COL.bookings), ...constraints));
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Booking) }));
 }
 
-/** Liefert Buchungen (approved ODER requested), die sich mit einem Zeitraum überschneiden. */
+/**
+ * Liefert Buchungen (approved ODER requested), die sich mit einem Zeitraum überschneiden.
+ * Query-Strategie:
+ * - propertyId == ...
+ * - status IN ["approved", "requested"]
+ * - Overlap-Filter komplett serverseitig
+ */
 export async function listOverlapBookings(
   propertyId: string,
   fromISO: string,
   toISO: string
 ): Promise<(Booking & { id: string })[]> {
-  const all = await listBookings(propertyId);
-  return all.filter(
-    (b) =>
-      (b.status === "approved" || b.status === "requested") &&
-      b.startDate < toISO &&
-      b.endDate > fromISO
+  const qy = query(
+    collection(db, COL.bookings),
+    where("propertyId", "==", propertyId),
+    where("status", "in", ["approved", "requested"]),
+    where("startDate", "<", toISO),
+    where("endDate", ">", fromISO),
   );
+  const snap = await getDocs(qy);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Booking) }));
 }
 
 /** Gibt für eine Buchung alle geblockten Nächte frei (sicherheitsbewusst). */
