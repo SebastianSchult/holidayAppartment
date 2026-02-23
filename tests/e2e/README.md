@@ -11,10 +11,10 @@ This folder defines the baseline E2E strategy for the project.
   - happy-path booking request flow (form fill, submit, success feedback)
   - mail endpoint is stubbed in test for deterministic runs
 - `admin/`:
-  - planned critical admin workflow (auth + status actions)
+  - planned critical admin workflow (currently disabled)
 
-Current baseline executes public smoke tests and the booking happy-path flow.
-`admin/` remains a skipped placeholder for follow-up issues.
+Current baseline executes public smoke tests and booking happy-path flow.
+Admin E2E remains intentionally disabled until test data/access are stabilized.
 
 ## Test Structure and Naming
 
@@ -46,5 +46,4 @@ This allows two modes:
 ## Auth and Test Data Strategy
 
 - Do not use production admin accounts for E2E.
-- Add a dedicated admin test account in follow-up admin E2E ticket.
 - Booking E2E should use deterministic test data and avoid flaky external dependencies (mock/stub mail path where needed).
