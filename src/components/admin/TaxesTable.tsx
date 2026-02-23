@@ -66,6 +66,9 @@ export default function TaxesTable({ propertyId }: { propertyId: string }) {
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full text-sm">
+          <caption className="sr-only">
+            Kurtaxe-Bänder mit Zone, Bezeichnung, Betrag, wiederkehrenden Zeiträumen und Aktionen
+          </caption>
           <thead className="bg-slate-50 text-slate-700">
             <tr>
               <Th>Zone</Th>
@@ -117,7 +120,14 @@ export default function TaxesTable({ propertyId }: { propertyId: string }) {
 }
 
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={["px-3 py-2 text-left font-medium", className].filter(Boolean).join(" ")}>{children}</th>;
+  return (
+    <th
+      scope="col"
+      className={["px-3 py-2 text-left font-medium", className].filter(Boolean).join(" ")}
+    >
+      {children}
+    </th>
+  );
 }
 function Td({ children, className, colSpan }: { children: React.ReactNode; className?: string; colSpan?: number }) {
   return <td className={["px-3 py-2", className].filter(Boolean).join(" ") } colSpan={colSpan}>{children}</td>;

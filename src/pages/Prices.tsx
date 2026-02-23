@@ -106,6 +106,10 @@ export default function Prices() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
+              <caption className="sr-only">
+                Saisonpreise für {propertyName} mit Zeitraum, Tarifname, Preis pro
+                Nacht und Mindestnächten
+              </caption>
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
                   <Th>Zeitraum</Th>
@@ -150,7 +154,14 @@ export default function Prices() {
 }
 
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={["px-3 py-2 text-left font-medium", className].filter(Boolean).join(" ")}>{children}</th>;
+  return (
+    <th
+      scope="col"
+      className={["px-3 py-2 text-left font-medium", className].filter(Boolean).join(" ")}
+    >
+      {children}
+    </th>
+  );
 }
 function Td({ children, className }: { children: React.ReactNode; className?: string }) {
   return <td className={["px-3 py-2", className].filter(Boolean).join(" ")}>{children}</td>;

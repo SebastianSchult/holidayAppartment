@@ -288,6 +288,9 @@ export default function BookingsTable(
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full text-sm">
+          <caption className="sr-only">
+            Buchungsanfragen mit Kontakt, Zeitraum, Gästezahl, Status und Aktionen
+          </caption>
           <thead className="bg-slate-50 text-slate-700">
             <tr>
               <Th>Kontakt</Th>
@@ -596,6 +599,7 @@ function Th({
 }) {
   return (
     <th
+      scope="col"
       className={["px-3 py-2 text-left font-medium", className]
         .filter(Boolean)
         .join(" ")}
