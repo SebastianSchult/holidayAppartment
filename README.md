@@ -6,6 +6,21 @@
 - `npm run build` builds the frontend bundle.
 - `npm run ci` runs frontend + functions lint/build checks in one command.
 
+## Firestore Indexes (Booking Overlap Queries)
+
+Booking overlap/availability paths now use indexed server-side filters (no full booking fetch + client filtering).
+Required composite index is tracked in:
+
+- `firestore.indexes.json`
+- `firestore.indexes.remote.json`
+
+Index fields for `bookings`:
+
+- `propertyId` (ASC)
+- `status` (ASC)
+- `startDate` (ASC)
+- `endDate` (ASC)
+
 ## Mail Security Flow (No Frontend API Key)
 
 - `booking_request` is sent from the frontend to `VITE_MAIL_API_URL` (fallback: `/api/send-booking-mail.php`) without a secret header.
