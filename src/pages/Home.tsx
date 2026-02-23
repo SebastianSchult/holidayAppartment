@@ -63,23 +63,29 @@ export default function Home() {
           </p>
 
           <form className="mt-4 grid gap-3 md:grid-cols-4">
-            <input
-              className="rounded-lg border p-3 md:col-span-1"
-              type="date"
-              aria-label="Anreise"
-            />
-            <input
-              className="rounded-lg border p-3 md:col-span-1"
-              type="date"
-              aria-label="Abreise"
-            />
-            <input
-              className="rounded-lg border p-3 md:col-span-1"
-              type="number"
-              min={1}
-              defaultValue={2}
-              aria-label="Gäste"
-            />
+            <label className="md:col-span-1">
+              <span className="mb-1 block text-sm text-slate-700">Anreise</span>
+              <input
+                className="w-full rounded-lg border p-3"
+                type="date"
+              />
+            </label>
+            <label className="md:col-span-1">
+              <span className="mb-1 block text-sm text-slate-700">Abreise</span>
+              <input
+                className="w-full rounded-lg border p-3"
+                type="date"
+              />
+            </label>
+            <label className="md:col-span-1">
+              <span className="mb-1 block text-sm text-slate-700">Gäste</span>
+              <input
+                className="w-full rounded-lg border p-3"
+                type="number"
+                min={1}
+                defaultValue={2}
+              />
+            </label>
             <button
               className="rounded-lg bg-[color:var(--ocean,#0e7490)] px-5 py-3 font-medium text-white hover:opacity-90"
               type="button"
@@ -92,6 +98,7 @@ export default function Home() {
       </div>
 
       <section className="mt-8 bg-[color:var(--sand,#f4ede4)] py-8 md:mt-12 md:py-12">
+        <h2 className="sr-only">Ausstattungsmerkmale</h2>
         <div className="mx-auto grid max-w-6xl gap-4 px-4 md:grid-cols-4">
           {[
             { t: "Strandnah", d: "20 Minuten zu Fuß" },
@@ -99,10 +106,10 @@ export default function Home() {
             { t: "Haustiere erlaubt", d: "auf Anfrage" },
             { t: "WLAN & Smart-TV", d: "inklusive" },
           ].map((it) => (
-            <div key={it.t} className="rounded-xl bg-white p-4 shadow-sm">
+            <article key={it.t} className="rounded-xl bg-white p-4 shadow-sm">
               <h3 className="text-base font-semibold text-slate-900">{it.t}</h3>
               <p className="text-sm text-slate-600">{it.d}</p>
-            </div>
+            </article>
           ))}
         </div>
       </section>
