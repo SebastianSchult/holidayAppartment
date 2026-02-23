@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+playwright-report
+test-results
+blob-report
 
 # Editor directories and files
 .vscode/*
@@ -33,4 +36,3 @@ sa-keys
 
 backend-php
 config.php
-
