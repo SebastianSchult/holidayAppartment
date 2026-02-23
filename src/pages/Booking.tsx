@@ -457,13 +457,17 @@ export default function Booking() {
                 <summary className="cursor-pointer select-none font-medium">Preis je Nacht anzeigen</summary>
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-full text-sm">
+                    <caption className="sr-only">
+                      Preisaufschlüsselung pro Nacht für den ausgewählten Zeitraum
+                      inklusive Tarif, Kurtaxe und Gesamtsumme
+                    </caption>
                     <thead>
                       <tr className="text-left text-slate-600">
-                        <th className="py-1 pr-3">Datum</th>
-                        <th className="py-1 pr-3">Tarif</th>
-                        <th className="py-1 pr-3 text-right">Preis / Nacht</th>
-                        <th className="py-1 pr-3 text-right">Kurtaxe / Nacht</th>
-                        <th className="py-1 pr-3 text-right">Summe / Nacht</th>
+                        <th scope="col" className="py-1 pr-3">Datum</th>
+                        <th scope="col" className="py-1 pr-3">Tarif</th>
+                        <th scope="col" className="py-1 pr-3 text-right">Preis / Nacht</th>
+                        <th scope="col" className="py-1 pr-3 text-right">Kurtaxe / Nacht</th>
+                        <th scope="col" className="py-1 pr-3 text-right">Summe / Nacht</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -477,19 +481,19 @@ export default function Booking() {
                         </tr>
                       ))}
                       <tr className="border-t-2 border-slate-300 font-semibold">
-                        <td className="py-1 pr-3" colSpan={2}>Summe Übernachtungen</td>
+                        <td className="py-1 pr-3" colSpan={4}>Summe Übernachtungen</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.base.nightsTotal)}</td>
                       </tr>
                       <tr>
-                        <td className="py-1 pr-3" colSpan={2}>Endreinigung</td>
+                        <td className="py-1 pr-3" colSpan={4}>Endreinigung</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.base.cleaningFee)}</td>
                       </tr>
                       <tr>
-                        <td className="py-1 pr-3" colSpan={2}>Kurtaxe (gesamt)</td>
+                        <td className="py-1 pr-3" colSpan={4}>Kurtaxe (gesamt)</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.tax.total)}</td>
                       </tr>
                       <tr className="border-t-2 border-slate-300 font-semibold">
-                        <td className="py-1 pr-3" colSpan={2}>Gesamt</td>
+                        <td className="py-1 pr-3" colSpan={4}>Gesamt</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.grandTotal)}</td>
                       </tr>
                     </tbody>

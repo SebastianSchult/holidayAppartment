@@ -38,9 +38,12 @@ export default function SeasonsTable({ propertyId }: { propertyId: string }) {
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full text-sm">
+          <caption className="sr-only">
+            Saisonpreise mit Zeitraum, Nachtpreis, Mindestnächten und Aktionen
+          </caption>
           <thead className="bg-slate-50 text-slate-700">
             <tr>
-              <Th>Name</Th><Th>Start</Th><Th>Ende</Th><Th>Preis/Nacht</Th><Th>Min. Nächte</Th><Th></Th>
+              <Th>Name</Th><Th>Start</Th><Th>Ende</Th><Th>Preis/Nacht</Th><Th>Min. Nächte</Th><Th>Aktionen</Th>
             </tr>
           </thead>
           <tbody>
@@ -68,7 +71,7 @@ export default function SeasonsTable({ propertyId }: { propertyId: string }) {
 }
 
 function Th({ children }: { children?: React.ReactNode }) {
-  return <th className="px-3 py-2 text-left font-medium">{children}</th>;
+  return <th scope="col" className="px-3 py-2 text-left font-medium">{children}</th>;
 }
 function Td({ children, colSpan, className }: { children: React.ReactNode; colSpan?: number; className?: string }) {
   const cls = className ? `px-3 py-2 ${className}` : 'px-3 py-2';
