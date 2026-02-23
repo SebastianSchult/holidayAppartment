@@ -109,6 +109,35 @@ npm --prefix functions run serve
 - `npm --prefix functions run build`
 - `npm --prefix functions run serve`
 
+## E2E Testing (Playwright Baseline)
+
+Install browser once:
+
+```bash
+npm run e2e:install
+```
+
+Run E2E tests:
+
+```bash
+npm run e2e
+```
+
+Run against an external/staging URL:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://your-preview-url npm run e2e
+```
+
+Useful variants:
+
+- `npm run e2e:headed`
+- `npm run e2e:ui`
+- `npm run e2e:report`
+
+Current baseline includes public smoke tests and documented placeholders for booking/admin flows.
+See `tests/e2e/README.md` for scope, naming conventions, and environment strategy.
+
 ## Environment Variables and Secrets
 
 ### Frontend env (`VITE_*`)
