@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import type { Matcher } from "react-day-picker";
 import { de } from "date-fns/locale";
@@ -47,6 +47,7 @@ export default function OccupancyCalendar({ propertyId }: Props) {
 
   // Confirm modal
   const [confirmState, setConfirmState] = useState<null | { booking: Booking & { id: string } }>(null);
+  const cancelDialogTitleId = useId();
 
   // Sichtbereich: aktueller Monat + nächster Monat (2 Monate Ansicht)
   const range = useMemo(() => {
@@ -149,6 +150,17 @@ export default function OccupancyCalendar({ propertyId }: Props) {
     }
   }
 
+  useEffect(() => {
+    if (!confirmState) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setConfirmState(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [confirmState]);
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -235,18 +247,25 @@ export default function OccupancyCalendar({ propertyId }: Props) {
       </div>
 
       {confirmState && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={cancelDialogTitleId}
+        >
           <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
-            <h4 className="text-lg font-semibold">Buchung stornieren</h4>
+            <h4 id={cancelDialogTitleId} className="text-lg font-semibold">Buchung stornieren</h4>
             <p className="mt-2 text-sm text-slate-700">Möchtest du diese Buchung wirklich stornieren?</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setConfirmState(null)}
                 className="rounded border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50"
               >
                 Abbrechen
               </button>
               <button
+                type="button"
                 onClick={() => { const b = confirmState.booking; setConfirmState(null); handleCancel(b); }}
                 className="rounded bg-red-600 px-3 py-1.5 text-white hover:bg-red-700"
               >

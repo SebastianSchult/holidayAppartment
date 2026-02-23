@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { buildGalleryImagePath, GALLERY_IMAGES } from "../lib/galleryImages";
 
 export default function Gallery() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const lightboxTitleId = useId();
 
   const closeLightbox = () => setActiveIndex(null);
   const showPrevious = () =>
@@ -34,6 +36,7 @@ export default function Gallery() {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
+    closeButtonRef.current?.focus();
 
     return () => {
       document.body.style.overflow = previousOverflow;
@@ -78,9 +81,11 @@ export default function Gallery() {
           onClick={closeLightbox}
           role="dialog"
           aria-modal="true"
-          aria-label="Große Bildansicht"
+          aria-labelledby={lightboxTitleId}
         >
+          <h2 id={lightboxTitleId} className="sr-only">Große Bildansicht</h2>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={closeLightbox}
             className="absolute right-3 top-3 rounded-md bg-white/90 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-white md:right-6 md:top-6"

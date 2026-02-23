@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, useId } from "react";
 import { listBookings, approveBooking, declineBooking, deleteBooking, cancelBooking } from "../../lib/db";
 import type { Booking } from "../../lib/schemas";
 
@@ -177,14 +177,21 @@ export default function BookingsTable(
     }
   }
 
-  // ESC schließt Modal
+  // ESC schließt offene Modals konsistent
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setSelected(null);
+      if (e.key !== "Escape") return;
+      if (confirmState) {
+        setConfirmState(null);
+        return;
+      }
+      if (selected) {
+        setSelected(null);
+      }
     }
-    if (selected) window.addEventListener("keydown", onKey);
+    if (selected || confirmState) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected]);
+  }, [selected, confirmState]);
 
   const norm = (s?: string) => (s || "").toLowerCase();
   const isApproved = (s: string) => ["approved", "confirmed"].includes(norm(s));
@@ -622,11 +629,18 @@ function LightModal({
   onClose: () => void;
 }) {
   const backdropRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
 
   return (
     <div
       aria-modal="true"
       role="dialog"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
       onClick={(e) => {
         if (e.target === backdropRef.current) onClose();
@@ -638,8 +652,10 @@ function LightModal({
       {/* Panel */}
       <div className="relative z-10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl bg-white shadow-xl p-4 md:p-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 id={titleId} className="text-lg font-semibold">{title}</h3>
           <button
+            ref={closeButtonRef}
+            type="button"
             aria-label="Schließen"
             onClick={onClose}
             className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
