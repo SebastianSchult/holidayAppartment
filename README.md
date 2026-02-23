@@ -1,5 +1,18 @@
 # React + TypeScript + Vite
 
+## Mail Security Flow (No Frontend API Key)
+
+- `booking_request` is sent from the frontend to `VITE_MAIL_API_URL` (fallback: `/api/send-booking-mail.php`) without a secret header.
+- `admin_action` is sent with `Authorization: Bearer <Firebase ID token>` from the logged-in admin session.
+- The PHP endpoint verifies the Firebase token via Identity Toolkit (`accounts:lookup`) and only allows emails from `ADMIN_EMAILS` (fallback: `OWNER_EMAIL`).
+- `VITE_MAIL_API_KEY` is intentionally removed from frontend usage and can be deleted from local env files and GitHub Secrets.
+
+Server-side `backend-php/config.php` must provide at least:
+
+- `FIREBASE_API_KEY`
+- `ADMIN_EMAILS`
+- SMTP settings (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, ...)
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

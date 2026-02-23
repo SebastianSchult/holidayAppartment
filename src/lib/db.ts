@@ -1,19 +1,78 @@
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, updateDoc, where, setDoc, runTransaction, Timestamp
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
 import type { Property, Season, TouristTaxBand, Booking, Role } from "./schemas";
 import { COL } from "./schemas";
+
+const MAIL_API_URL = (import.meta.env.VITE_MAIL_API_URL as string | undefined)?.trim() || "/api/send-booking-mail.php";
 
 async function sendAdminActionMail(
   action: "approved" | "declined" | "cancelled",
   booking: (Booking & { id: string }),
   propertyName?: string
 ): Promise<{ ok: boolean; detail?: string }> {
-  // Mailversand passiert serverseitig über Firestore Trigger (Cloud Functions).
-  // Kein API-Key im Frontend.
-  console.info("[mail] %s handled by server-side trigger (booking=%s, property=%s)", action, booking.id, propertyName ?? booking.propertyId);
-  return { ok: true, detail: "handled_by_server_trigger" };
+  if (!MAIL_API_URL) {
+    console.warn("[mail] admin action skipped – VITE_MAIL_API_URL missing");
+    return {ok: false, detail: "mail_api_missing"};
+  }
+
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    console.warn("[mail] admin action skipped – no authenticated user");
+    return {ok: false, detail: "admin_not_authenticated"};
+  }
+
+  try {
+    const idToken = await currentUser.getIdToken();
+    const resp = await fetch(MAIL_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        type: "admin_action",
+        action,
+        bookingId: booking.id,
+        propertyId: booking.propertyId,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        adults: booking.adults,
+        children: booking.children,
+        contact: booking.contact,
+        message: booking.message ?? "",
+        status: booking.status,
+        propertyName,
+      }),
+    });
+
+    const text = await resp.text();
+    type MailApiResponse = {
+      ok?: boolean;
+      detail?: unknown;
+      error?: string;
+    };
+    let json: MailApiResponse | null = null;
+    try {
+      json = text ? (JSON.parse(text) as MailApiResponse) : null;
+    } catch {
+      // keep json as null if response is not JSON
+    }
+
+    if (!resp.ok || json?.ok === false) {
+      const detailCandidate = json?.detail ?? json?.error ?? (text || String(resp.status));
+      const detail = typeof detailCandidate === "string" ? detailCandidate : JSON.stringify(detailCandidate);
+      console.warn("[mail] admin action failed:", resp.status, detail);
+      return {ok: false, detail};
+    }
+
+    return {ok: true, detail: typeof json?.detail === "string" ? json.detail : undefined};
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : "fetch_failed";
+    console.warn("[mail] admin action error:", e);
+    return {ok: false, detail};
+  }
 }
 
 /** Properties */
