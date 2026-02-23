@@ -8,12 +8,13 @@ This folder defines the baseline E2E strategy for the project.
   - smoke coverage for public routes (`/`, `/gallery`, `/prices`, `/book`)
   - checks route render + key UI blocks + no uncaught runtime errors (`pageerror` / `console.error`)
 - `booking/`:
-  - planned happy-path booking request flow
+  - happy-path booking request flow (form fill, submit, success feedback)
+  - mail endpoint is stubbed in test for deterministic runs
 - `admin/`:
   - planned critical admin workflow (auth + status actions)
 
-Current baseline executes only public smoke tests.
-`booking/` and `admin/` are intentionally marked as skipped placeholders for follow-up issues.
+Current baseline executes public smoke tests and the booking happy-path flow.
+`admin/` remains a skipped placeholder for follow-up issues.
 
 ## Test Structure and Naming
 
