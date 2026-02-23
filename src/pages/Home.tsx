@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { buildGalleryImagePath, GALLERY_IMAGES } from "../lib/galleryImages";
+import {
+  buildGalleryImagePath,
+  buildGallerySrcSet,
+  GALLERY_IMAGES,
+} from "../lib/galleryImages";
 
 const SLIDESHOW_INTERVAL_MS = 9000;
 const SLIDESHOW_TRANSITION_MS = 3200;
@@ -42,13 +46,30 @@ export default function Home() {
   return (
     <section className="relative w-full">
       <div className="relative h-[52vh] w-full overflow-hidden md:h-[64vh]">
-        <img
-          src="/hero/cuxhaven-591391_1280.jpg"
-          alt="Meerblick"
-          className="h-full w-full object-cover"
-          loading="eager"
-          decoding="async"
-        />
+        <picture>
+          <source
+            type="image/avif"
+            srcSet="/hero/cuxhaven-hero-640.avif 640w, /hero/cuxhaven-hero-960.avif 960w, /hero/cuxhaven-hero-1280.avif 1280w"
+            sizes="100vw"
+          />
+          <source
+            type="image/webp"
+            srcSet="/hero/cuxhaven-hero-640.webp 640w, /hero/cuxhaven-hero-960.webp 960w, /hero/cuxhaven-hero-1280.webp 1280w"
+            sizes="100vw"
+          />
+          <img
+            src="/hero/cuxhaven-hero-1280.jpg"
+            srcSet="/hero/cuxhaven-hero-640.jpg 640w, /hero/cuxhaven-hero-960.jpg 960w, /hero/cuxhaven-hero-1280.jpg 1280w"
+            sizes="100vw"
+            alt="Meerblick"
+            className="h-full w-full object-cover"
+            width={1280}
+            height={960}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
+        </picture>
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
       </div>
 
@@ -143,26 +164,54 @@ export default function Home() {
 
         <div className="overflow-hidden rounded-2xl bg-slate-100 shadow-lg">
           <div className="relative aspect-[16/9] w-full">
-            <img
-              src={buildGalleryImagePath(GALLERY_IMAGES[activeSlide])}
-              alt={`Ferienwohnung Ansicht ${activeSlide + 1}`}
-              className={`absolute inset-0 h-full w-full object-cover ${slideMotionClass} ${
+            <picture
+              className={`absolute inset-0 ${slideMotionClass} ${
                 isSliding ? "-translate-x-full" : "translate-x-0"
               }`}
               style={{ transitionDuration: `${SLIDESHOW_TRANSITION_MS}ms` }}
-              loading="eager"
-              decoding="async"
-            />
-            <img
-              src={buildGalleryImagePath(GALLERY_IMAGES[nextSlide])}
-              alt={`Ferienwohnung Ansicht ${nextSlide + 1}`}
-              className={`absolute inset-0 h-full w-full object-cover ${slideMotionClass} ${
+            >
+              <source
+                type="image/avif"
+                srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeSlide], "avif")}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
+              />
+              <source
+                type="image/webp"
+                srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeSlide], "webp")}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
+              />
+              <img
+                src={buildGalleryImagePath(GALLERY_IMAGES[activeSlide])}
+                alt={`Ferienwohnung Ansicht ${activeSlide + 1}`}
+                className="h-full w-full object-cover"
+                loading="eager"
+                decoding="async"
+              />
+            </picture>
+            <picture
+              className={`absolute inset-0 ${slideMotionClass} ${
                 isSliding ? "translate-x-0" : "translate-x-full"
               }`}
               style={{ transitionDuration: `${SLIDESHOW_TRANSITION_MS}ms` }}
-              loading="lazy"
-              decoding="async"
-            />
+            >
+              <source
+                type="image/avif"
+                srcSet={buildGallerySrcSet(GALLERY_IMAGES[nextSlide], "avif")}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
+              />
+              <source
+                type="image/webp"
+                srcSet={buildGallerySrcSet(GALLERY_IMAGES[nextSlide], "webp")}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
+              />
+              <img
+                src={buildGalleryImagePath(GALLERY_IMAGES[nextSlide])}
+                alt={`Ferienwohnung Ansicht ${nextSlide + 1}`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
             <div className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
               Bild {activeSlide + 1} von {totalSlides}

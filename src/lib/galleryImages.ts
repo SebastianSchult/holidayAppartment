@@ -29,6 +29,34 @@ export const GALLERY_IMAGES = [
   "WhatsApp Image 2025-09-22 at 13.51.57.jpeg",
 ];
 
+const GALLERY_VARIANT_WIDTHS = [640, 1600] as const;
+
 export function buildGalleryImagePath(fileName: string) {
   return `/img/${encodeURIComponent(fileName)}`;
+}
+
+function getFileBase(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex === -1) {
+    return fileName;
+  }
+  return fileName.slice(0, dotIndex);
+}
+
+export function buildGalleryVariantPath(
+  fileName: string,
+  width: (typeof GALLERY_VARIANT_WIDTHS)[number],
+  format: "avif" | "webp",
+) {
+  const base = getFileBase(fileName);
+  return buildGalleryImagePath(`${base}-${width}.${format}`);
+}
+
+export function buildGallerySrcSet(
+  fileName: string,
+  format: "avif" | "webp",
+) {
+  return GALLERY_VARIANT_WIDTHS.map((width) =>
+    `${buildGalleryVariantPath(fileName, width, format)} ${width}w`,
+  ).join(", ");
 }
