@@ -7,12 +7,13 @@
     "dev": "vite",
     "preview": "vite preview",
     "lint:frontend": "eslint \"src/**/*.{ts,tsx}\"",
+    "typecheck:frontend": "tsc -b",
     "build:frontend": "vite build",
     "lint:functions": "npm --prefix functions run lint",
     "build:functions": "npm --prefix functions run build",
     "lint": "npm run lint:frontend",
     "build": "npm run build:frontend",
-    "ci": "npm run lint:frontend && npm run build:frontend && npm run lint:functions && npm run build:functions"
+    "ci": "npm run lint:frontend && npm run typecheck:frontend && npm run build:frontend && npm run lint:functions && npm run build:functions"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.1",
