@@ -91,14 +91,34 @@ export default function Booking() {
           .VITE_DEFAULT_PROPERTY_ID
           ?.trim();
 
-        let resolvedPropertyId: string | null = envId || null;
+        let resolvedPropertyId: string | null = null;
         let propertyData: Property | null = null;
+        let seasonsData: (Season & { id: string })[] = [];
+        let taxBandsData: (TouristTaxBand & { id: string })[] = [];
 
-        if (resolvedPropertyId) {
-          propertyData = await getProperty(resolvedPropertyId);
-          if (!propertyData) {
-            console.warn("[booking] default property id not found, using fallback", resolvedPropertyId);
-            resolvedPropertyId = null;
+        if (envId) {
+          const [propResult, seasonsResult, taxBandsResult] = await Promise.allSettled([
+            getProperty(envId),
+            listSeasons(envId),
+            listTaxBands(envId),
+          ]);
+
+          propertyData = propResult.status === "fulfilled" ? propResult.value : null;
+          if (seasonsResult.status === "fulfilled") {
+            seasonsData = seasonsResult.value;
+          } else {
+            console.warn("[booking] listSeasons failed for default property id", seasonsResult.reason);
+          }
+          if (taxBandsResult.status === "fulfilled") {
+            taxBandsData = taxBandsResult.value;
+          } else {
+            console.warn("[booking] listTaxBands failed for default property id", taxBandsResult.reason);
+          }
+
+          if (propertyData) {
+            resolvedPropertyId = envId;
+          } else {
+            console.warn("[booking] default property id not found, using fallback", envId);
           }
         }
 
@@ -109,6 +129,23 @@ export default function Booking() {
           }
           resolvedPropertyId = firstProperty.id;
           propertyData = firstProperty.data;
+
+          const [seasonsResult, taxBandsResult] = await Promise.allSettled([
+            listSeasons(resolvedPropertyId),
+            listTaxBands(resolvedPropertyId),
+          ]);
+          if (seasonsResult.status === "fulfilled") {
+            seasonsData = seasonsResult.value;
+          } else {
+            console.warn("[booking] listSeasons failed for fallback property id", seasonsResult.reason);
+            seasonsData = [];
+          }
+          if (taxBandsResult.status === "fulfilled") {
+            taxBandsData = taxBandsResult.value;
+          } else {
+            console.warn("[booking] listTaxBands failed for fallback property id", taxBandsResult.reason);
+            taxBandsData = [];
+          }
         }
 
         if (!resolvedPropertyId || !propertyData) {
@@ -121,17 +158,10 @@ export default function Booking() {
         setDefaultRate(propertyData.defaultNightlyRate ?? 0);
         setCleaningFee(propertyData.cleaningFee ?? 0);
 
-        console.debug("[booking] listSeasons →", resolvedPropertyId);
-        const s = await listSeasons(resolvedPropertyId);
-        console.debug("[booking] listSeasons ✓", s.length);
-        s.sort((a, b) => a.startDate.localeCompare(b.startDate));
-        setSeasons(s);
-
-        console.debug("[booking] listTaxBands →", resolvedPropertyId);
-        const t = await listTaxBands(resolvedPropertyId);
-        console.debug("[booking] listTaxBands ✓", t.length);
-        t.sort((a, b) => (a.zone || "").localeCompare(b.zone || ""));
-        setTaxBands(t);
+        seasonsData.sort((a, b) => a.startDate.localeCompare(b.startDate));
+        taxBandsData.sort((a, b) => (a.zone || "").localeCompare(b.zone || ""));
+        setSeasons(seasonsData);
+        setTaxBands(taxBandsData);
 
         console.debug("[booking] init – done]");
       } catch (e) {
