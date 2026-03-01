@@ -160,6 +160,20 @@ async function findAvailableRange(
   };
 }
 
+async function waitForBookingToastOutcome(page: Page): Promise<"success" | "unavailable"> {
+  const successToast = page
+    .locator('div[role="status"][aria-live="polite"]')
+    .filter({ hasText: /Vielen Dank! Deine Anfrage wurde übermittelt/ });
+  const unavailableToast = page
+    .locator('div[role="status"][aria-live="polite"]')
+    .filter({ hasText: "Der gewählte Zeitraum ist aktuell nicht verfügbar." });
+
+  return Promise.any([
+    successToast.waitFor({ state: "visible", timeout: 30_000 }).then(() => "success" as const),
+    unavailableToast.waitFor({ state: "visible", timeout: 30_000 }).then(() => "unavailable" as const),
+  ]);
+}
+
 test.describe("Booking flow", () => {
   test("happy path creates booking and shows success feedback", async ({ page }) => {
     test.setTimeout(60_000);
@@ -189,10 +203,6 @@ test.describe("Booking flow", () => {
     await expect(page.locator("#booking-form")).toBeVisible();
 
     const propertyId = resolveDefaultPropertyId();
-    const { startDate, endDate } = await findAvailableRange(page, propertyId, 3);
-
-    await pickRange(page, startDate, endDate);
-    await waitForAvailabilityState(page, "available");
 
     await page.getByLabel("Name").fill("Playwright E2E");
     await page.getByLabel("E-Mail").fill("playwright.e2e@example.com");
@@ -204,14 +214,29 @@ test.describe("Booking flow", () => {
     await page.getByLabel("Nachricht (optional)").fill("Playwright happy path test booking.");
 
     const submitButton = page.getByRole("button", { name: "Anfrage senden" });
-    await expect(submitButton).toBeEnabled();
-    await submitButton.click();
+    let submitOutcome: "success" | "unavailable" | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { startDate, endDate } = await findAvailableRange(page, propertyId, 3);
+      await pickRange(page, startDate, endDate);
+      await waitForAvailabilityState(page, "available");
 
-    // DayPicker also uses `role="status"` for month captions.
-    // The booking feedback toast is the status element with aria-live.
-    const bookingToast = page.locator('[role="status"][aria-live="polite"]').last();
-    await expect(bookingToast).toBeVisible({ timeout: 30_000 });
-    await expect(bookingToast).toContainText("Vielen Dank! Deine Anfrage wurde übermittelt");
+      await expect(submitButton).toBeEnabled();
+      await submitButton.click();
+
+      submitOutcome = await waitForBookingToastOutcome(page);
+      if (submitOutcome === "success") break;
+
+      await page.getByRole("button", { name: "Hinweis schließen" }).click().catch(() => {});
+    }
+
+    expect(
+      submitOutcome,
+      "Expected successful booking submission toast after selecting an available range."
+    ).toBe("success");
+
+    const bookingToast = page
+      .locator('div[role="status"][aria-live="polite"]')
+      .filter({ hasText: /Vielen Dank! Deine Anfrage wurde übermittelt/ });
     await expect(bookingToast).toContainText("Bestätigungsmail wurde versendet");
 
     expect(mailPayloads.length, "Expected exactly one mocked mail request.").toBe(1);
