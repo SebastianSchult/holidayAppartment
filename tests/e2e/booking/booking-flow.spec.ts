@@ -207,11 +207,12 @@ test.describe("Booking flow", () => {
     await expect(submitButton).toBeEnabled();
     await submitButton.click();
 
-    const successToast = page.getByRole("status").filter({
-      hasText: /Vielen Dank! Deine Anfrage wurde übermittelt/,
-    });
-    await expect(successToast).toBeVisible();
-    await expect(successToast).toContainText("Bestätigungsmail wurde versendet");
+    // DayPicker also uses `role="status"` for month captions.
+    // The booking feedback toast is the status element with aria-live.
+    const bookingToast = page.locator('[role="status"][aria-live="polite"]').last();
+    await expect(bookingToast).toBeVisible({ timeout: 30_000 });
+    await expect(bookingToast).toContainText("Vielen Dank! Deine Anfrage wurde übermittelt");
+    await expect(bookingToast).toContainText("Bestätigungsmail wurde versendet");
 
     expect(mailPayloads.length, "Expected exactly one mocked mail request.").toBe(1);
     const payload = (mailPayloads[0] || {}) as {
