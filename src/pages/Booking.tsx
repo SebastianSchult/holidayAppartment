@@ -1,6 +1,14 @@
 // src/pages/Booking.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { listSeasons, listTaxBands, createBookingRequest, isRangeAvailable, listUnavailableNights } from "../lib/db";
+import {
+  listSeasons,
+  listTaxBands,
+  createBookingRequest,
+  isRangeAvailable,
+  listUnavailableNights,
+  getProperty,
+  getFirstProperty,
+} from "../lib/db";
 import type { Property, Season, TouristTaxBand } from "../lib/schemas";
 import { priceForStay, touristTaxForStay } from "../lib/pricing";
 import { DayPicker } from "react-day-picker";
@@ -22,9 +30,9 @@ export default function Booking() {
 
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("Ferienwohnung");
-  const currency = "EUR" as const;
-  const defaultRate = 0;
-  const cleaningFee = 0;
+  const [currency, setCurrency] = useState<string>("EUR");
+  const [defaultRate, setDefaultRate] = useState<number>(0);
+  const [cleaningFee, setCleaningFee] = useState<number>(0);
 
   const [seasons, setSeasons] = useState<(Season & { id: string })[]>([]);
   const [taxBands, setTaxBands] = useState<(TouristTaxBand & { id: string })[]>([]);
@@ -79,20 +87,48 @@ export default function Booking() {
       setError(null);
       try {
         console.debug("[booking] init – start");
-        const envId = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_DEFAULT_PROPERTY_ID;
-        if (!envId) throw new Error("Konfiguration fehlt: VITE_DEFAULT_PROPERTY_ID.");
+        const envId = (import.meta as unknown as { env: Record<string, string | undefined> }).env
+          .VITE_DEFAULT_PROPERTY_ID
+          ?.trim();
 
-        setPropertyId(envId);
-        setPropertyName("Antjes Ankerplatz");
+        let resolvedPropertyId: string | null = envId || null;
+        let propertyData: Property | null = null;
 
-        console.debug("[booking] listSeasons →", envId);
-        const s = await listSeasons(envId);
+        if (resolvedPropertyId) {
+          propertyData = await getProperty(resolvedPropertyId);
+          if (!propertyData) {
+            console.warn("[booking] default property id not found, using fallback", resolvedPropertyId);
+            resolvedPropertyId = null;
+          }
+        }
+
+        if (!resolvedPropertyId || !propertyData) {
+          const firstProperty = await getFirstProperty();
+          if (!firstProperty) {
+            throw new Error("Keine Unterkunft gefunden. Bitte zuerst Stammdaten im Adminbereich anlegen.");
+          }
+          resolvedPropertyId = firstProperty.id;
+          propertyData = firstProperty.data;
+        }
+
+        if (!resolvedPropertyId || !propertyData) {
+          throw new Error("Unterkunft konnte nicht geladen werden.");
+        }
+
+        setPropertyId(resolvedPropertyId);
+        setPropertyName(propertyData.name || "Ferienwohnung");
+        setCurrency(propertyData.currency || "EUR");
+        setDefaultRate(propertyData.defaultNightlyRate ?? 0);
+        setCleaningFee(propertyData.cleaningFee ?? 0);
+
+        console.debug("[booking] listSeasons →", resolvedPropertyId);
+        const s = await listSeasons(resolvedPropertyId);
         console.debug("[booking] listSeasons ✓", s.length);
         s.sort((a, b) => a.startDate.localeCompare(b.startDate));
         setSeasons(s);
 
-        console.debug("[booking] listTaxBands →", envId);
-        const t = await listTaxBands(envId);
+        console.debug("[booking] listTaxBands →", resolvedPropertyId);
+        const t = await listTaxBands(resolvedPropertyId);
         console.debug("[booking] listTaxBands ✓", t.length);
         t.sort((a, b) => (a.zone || "").localeCompare(b.zone || ""));
         setTaxBands(t);
@@ -117,8 +153,11 @@ export default function Booking() {
       if (!propertyId) return;
       try {
         console.debug("[booking] listUnavailableNights →", propertyId);
-        const fromISO = new Date().toISOString().slice(0, 10);
-        const toISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
+        const now = new Date();
+        const fromISO = formatLocalISO(now);
+        const oneYearAhead = new Date(now);
+        oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
+        const toISO = formatLocalISO(oneYearAhead);
         const dates = await listUnavailableNights(propertyId, fromISO, toISO);
         console.debug("[booking] listUnavailableNights ✓", dates.length);
         // IMPORTANT: use local noon to avoid DST/UTC edge cases where the day shifts
@@ -323,10 +362,10 @@ export default function Booking() {
     const startDate = new Date(start + "T00:00:00");
     const endDate = new Date(end + "T00:00:00");
     for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
-      const iso = d.toISOString().slice(0, 10);
+      const iso = formatLocalISO(d);
       const next = new Date(d); next.setDate(next.getDate() + 1);
-      const nextIso = next.toISOString().slice(0, 10);
-      const season = seasons.find((s) => iso >= s.startDate && iso <= s.endDate);
+      const nextIso = formatLocalISO(next);
+      const season = seasons.find((s) => iso >= s.startDate && iso < s.endDate);
       const label = season?.name || "Standard";
       const rate = season?.nightlyRate ?? defaultRate;
       // Kurtaxe für genau diese eine Nacht berechnen (nur Erwachsene)
