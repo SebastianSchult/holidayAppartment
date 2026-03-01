@@ -297,6 +297,24 @@ export async function isRangeAvailable(propertyId: string, startISO: string, end
   return holds.length === 0;
 }
 
+/**
+ * True when all deterministic hold doc ids for the range do not exist.
+ * Useful for public flows because Firestore rules currently allow public create
+ * but not public update on existing hold docs.
+ */
+export async function canCreatePublicHoldsForRange(
+  propertyId: string,
+  startISO: string,
+  endISO: string
+): Promise<boolean> {
+  const days = eachNight(startISO, endISO);
+  if (days.length === 0) return false;
+  const checks = await Promise.all(
+    days.map((day) => getDoc(doc(db, "publicHolds", `${propertyId}_${day}`)))
+  );
+  return checks.every((snap) => !snap.exists());
+}
+
 /** Blockiert alle Nächte für eine bestätigte Buchung. */
 export async function blockNightsForBooking(
   bookingId: string,

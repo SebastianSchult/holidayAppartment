@@ -94,6 +94,11 @@ async function findAvailableRange(
       const db = await import("/src/lib/db.ts");
       const isRangeAvailable: (propertyId: string, startISO: string, endISO: string) => Promise<boolean> =
         db.isRangeAvailable;
+      const canCreatePublicHoldsForRange: (
+        propertyId: string,
+        startISO: string,
+        endISO: string
+      ) => Promise<boolean> = db.canCreatePublicHoldsForRange;
 
       function toISO(date: Date): string {
         const y = date.getFullYear();
@@ -115,18 +120,28 @@ async function findAvailableRange(
         const end = new Date(start);
         end.setDate(end.getDate() + n);
 
-        if (await isRangeAvailable(id, toISO(start), toISO(end))) {
+        const startISO = toISO(start);
+        const endISO = toISO(end);
+        if (
+          (await isRangeAvailable(id, startISO, endISO)) &&
+          (await canCreatePublicHoldsForRange(id, startISO, endISO))
+        ) {
           const refineStart = Math.max(0, offset - coarseStep);
           for (let day = refineStart; day <= offset; day += 1) {
             const s = new Date(base);
             s.setDate(s.getDate() + day);
             const e = new Date(s);
             e.setDate(e.getDate() + n);
-            if (await isRangeAvailable(id, toISO(s), toISO(e))) {
-              return { startISO: toISO(s), endISO: toISO(e) };
+            const sISO = toISO(s);
+            const eISO = toISO(e);
+            if (
+              (await isRangeAvailable(id, sISO, eISO)) &&
+              (await canCreatePublicHoldsForRange(id, sISO, eISO))
+            ) {
+              return { startISO: sISO, endISO: eISO };
             }
           }
-          return { startISO: toISO(start), endISO: toISO(end) };
+          return { startISO, endISO };
         }
       }
 
