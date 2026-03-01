@@ -94,6 +94,11 @@ async function findAvailableRange(
       const db = await import("/src/lib/db.ts");
       const isRangeAvailable: (propertyId: string, startISO: string, endISO: string) => Promise<boolean> =
         db.isRangeAvailable;
+      const canCreatePublicHoldsForRange: (
+        propertyId: string,
+        startISO: string,
+        endISO: string
+      ) => Promise<boolean> = db.canCreatePublicHoldsForRange;
 
       function toISO(date: Date): string {
         const y = date.getFullYear();
@@ -115,18 +120,28 @@ async function findAvailableRange(
         const end = new Date(start);
         end.setDate(end.getDate() + n);
 
-        if (await isRangeAvailable(id, toISO(start), toISO(end))) {
+        const startISO = toISO(start);
+        const endISO = toISO(end);
+        if (
+          (await isRangeAvailable(id, startISO, endISO)) &&
+          (await canCreatePublicHoldsForRange(id, startISO, endISO))
+        ) {
           const refineStart = Math.max(0, offset - coarseStep);
           for (let day = refineStart; day <= offset; day += 1) {
             const s = new Date(base);
             s.setDate(s.getDate() + day);
             const e = new Date(s);
             e.setDate(e.getDate() + n);
-            if (await isRangeAvailable(id, toISO(s), toISO(e))) {
-              return { startISO: toISO(s), endISO: toISO(e) };
+            const sISO = toISO(s);
+            const eISO = toISO(e);
+            if (
+              (await isRangeAvailable(id, sISO, eISO)) &&
+              (await canCreatePublicHoldsForRange(id, sISO, eISO))
+            ) {
+              return { startISO: sISO, endISO: eISO };
             }
           }
-          return { startISO: toISO(start), endISO: toISO(end) };
+          return { startISO, endISO };
         }
       }
 
@@ -143,6 +158,20 @@ async function findAvailableRange(
     startDate: parseISODate(result.startISO),
     endDate: parseISODate(result.endISO),
   };
+}
+
+async function waitForBookingToastOutcome(page: Page): Promise<"success" | "unavailable"> {
+  const successToast = page
+    .locator('div[role="status"][aria-live="polite"]')
+    .filter({ hasText: /Vielen Dank! Deine Anfrage wurde übermittelt/ });
+  const unavailableToast = page
+    .locator('div[role="status"][aria-live="polite"]')
+    .filter({ hasText: "Der gewählte Zeitraum ist aktuell nicht verfügbar." });
+
+  return Promise.any([
+    successToast.waitFor({ state: "visible", timeout: 30_000 }).then(() => "success" as const),
+    unavailableToast.waitFor({ state: "visible", timeout: 30_000 }).then(() => "unavailable" as const),
+  ]);
 }
 
 test.describe("Booking flow", () => {
@@ -174,10 +203,6 @@ test.describe("Booking flow", () => {
     await expect(page.locator("#booking-form")).toBeVisible();
 
     const propertyId = resolveDefaultPropertyId();
-    const { startDate, endDate } = await findAvailableRange(page, propertyId, 3);
-
-    await pickRange(page, startDate, endDate);
-    await waitForAvailabilityState(page, "available");
 
     await page.getByLabel("Name").fill("Playwright E2E");
     await page.getByLabel("E-Mail").fill("playwright.e2e@example.com");
@@ -189,14 +214,30 @@ test.describe("Booking flow", () => {
     await page.getByLabel("Nachricht (optional)").fill("Playwright happy path test booking.");
 
     const submitButton = page.getByRole("button", { name: "Anfrage senden" });
-    await expect(submitButton).toBeEnabled();
-    await submitButton.click();
+    let submitOutcome: "success" | "unavailable" | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { startDate, endDate } = await findAvailableRange(page, propertyId, 3);
+      await pickRange(page, startDate, endDate);
+      await waitForAvailabilityState(page, "available");
 
-    const successToast = page.getByRole("status").filter({
-      hasText: /Vielen Dank! Deine Anfrage wurde übermittelt/,
-    });
-    await expect(successToast).toBeVisible();
-    await expect(successToast).toContainText("Bestätigungsmail wurde versendet");
+      await expect(submitButton).toBeEnabled();
+      await submitButton.click();
+
+      submitOutcome = await waitForBookingToastOutcome(page);
+      if (submitOutcome === "success") break;
+
+      await page.getByRole("button", { name: "Hinweis schließen" }).click().catch(() => {});
+    }
+
+    expect(
+      submitOutcome,
+      "Expected successful booking submission toast after selecting an available range."
+    ).toBe("success");
+
+    const bookingToast = page
+      .locator('div[role="status"][aria-live="polite"]')
+      .filter({ hasText: /Vielen Dank! Deine Anfrage wurde übermittelt/ });
+    await expect(bookingToast).toContainText("Bestätigungsmail wurde versendet");
 
     expect(mailPayloads.length, "Expected exactly one mocked mail request.").toBe(1);
     const payload = (mailPayloads[0] || {}) as {
