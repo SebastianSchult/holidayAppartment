@@ -120,7 +120,11 @@ service cloud.firestore {
       // - status muss 'requested' sein
       // - propertyId & date müssen Strings sein
       // - expiresAt muss Timestamp sein und maximal +72h in der Zukunft liegen
-      // Update/Delete: nur Admin oder Owner/Manager der Property
+      // Update:
+      // - öffentlich nur erlaubt, wenn der bestehende Hold bereits abgelaufen ist
+      // - propertyId/date müssen gleich bleiben
+      // - neuer Hold wieder streng validiert
+      // Delete: nur Admin oder Owner/Manager der Property
       allow create: if
         request.resource.data.status == 'requested' &&
         request.resource.data.propertyId is string &&
@@ -129,7 +133,29 @@ service cloud.firestore {
         request.resource.data.expiresAt > request.time &&
         request.resource.data.expiresAt <= request.time + duration.value(72, 'h');
 
-      allow update, delete: if
+      allow update: if
+        (
+          resource.data.propertyId is string &&
+          resource.data.date is string &&
+          resource.data.expiresAt is timestamp &&
+          resource.data.expiresAt <= request.time &&
+          request.resource.data.status == 'requested' &&
+          request.resource.data.propertyId is string &&
+          request.resource.data.date is string &&
+          request.resource.data.propertyId == resource.data.propertyId &&
+          request.resource.data.date == resource.data.date &&
+          request.resource.data.expiresAt is timestamp &&
+          request.resource.data.expiresAt > request.time &&
+          request.resource.data.expiresAt <= request.time + duration.value(72, 'h')
+        ) ||
+        isAdmin() ||
+        (
+          isSignedIn() &&
+          resource.data.propertyId is string &&
+          canManageProperty(resource.data.propertyId)
+        );
+
+      allow delete: if
         isAdmin() ||
         (
           isSignedIn() &&
