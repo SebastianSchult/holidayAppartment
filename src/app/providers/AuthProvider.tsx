@@ -1,7 +1,8 @@
 import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import React from 'react';
-import { auth, db } from '../../lib/firebase';
+import { auth } from '../../lib/firebaseAuth';
+import { db } from '../../lib/firebaseDb';
 import { doc, getDoc } from 'firebase/firestore';
 
 interface AuthCtx {
