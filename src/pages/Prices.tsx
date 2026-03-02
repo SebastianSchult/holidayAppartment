@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getFirstProperty, listSeasons } from "../lib/db";
+import { getFirstProperty, getProperty, listSeasons } from "../lib/db";
 
 type Row = {
   id: string;
@@ -24,29 +24,57 @@ export default function Prices() {
       setLoading(true);
       setError(null);
       try {
-        const prop = await getFirstProperty();
-        if (prop?.data) {
-          setPropertyName(prop.data.name || "Ferienwohnung");
-          setCurrency(prop.data.currency || "EUR");
-          setDefaultNightlyRate(prop.data.defaultNightlyRate || 0);
-          setCleaningFee(prop.data.cleaningFee || 0);
+        const envId = (import.meta as unknown as { env: Record<string, string | undefined> }).env
+          .VITE_DEFAULT_PROPERTY_ID
+          ?.trim();
 
-          const seasons = await listSeasons(prop.id);
-          // Falls listSeasons (temporär) nicht sortiert: hier nochmals absichern
-          seasons.sort((a, b) => a.startDate.localeCompare(b.startDate));
-          setRows(
-            seasons.map((s) => ({
-              id: s.id || `${s.propertyId}-${s.startDate}`,
-              name: s.name,
-              startDate: s.startDate,
-              endDate: s.endDate,
-              nightlyRate: s.nightlyRate,
-              minNights: s.minNights,
-            }))
-          );
-        } else {
-          setRows([]);
+        let resolvedPropId: string | null = null;
+        let resolvedProp: Awaited<ReturnType<typeof getProperty>> = null;
+        let seasonsData: Awaited<ReturnType<typeof listSeasons>> = [];
+
+        if (envId) {
+          const [propResult, seasonsResult] = await Promise.allSettled([
+            getProperty(envId),
+            listSeasons(envId),
+          ]);
+          if (propResult.status === "fulfilled" && propResult.value) {
+            resolvedPropId = envId;
+            resolvedProp = propResult.value;
+          }
+          if (seasonsResult.status === "fulfilled") {
+            seasonsData = seasonsResult.value;
+          }
         }
+
+        if (!resolvedProp || !resolvedPropId) {
+          const first = await getFirstProperty();
+          if (!first?.data) {
+            setRows([]);
+            return;
+          }
+          resolvedPropId = first.id;
+          resolvedProp = first.data;
+          if (!envId || envId !== resolvedPropId) {
+            seasonsData = await listSeasons(resolvedPropId);
+          }
+        }
+
+        setPropertyName(resolvedProp.name || "Ferienwohnung");
+        setCurrency(resolvedProp.currency || "EUR");
+        setDefaultNightlyRate(resolvedProp.defaultNightlyRate || 0);
+        setCleaningFee(resolvedProp.cleaningFee || 0);
+
+        seasonsData.sort((a, b) => a.startDate.localeCompare(b.startDate));
+        setRows(
+          seasonsData.map((s) => ({
+            id: s.id || `${s.propertyId}-${s.startDate}`,
+            name: s.name,
+            startDate: s.startDate,
+            endDate: s.endDate,
+            nightlyRate: s.nightlyRate,
+            minNights: s.minNights,
+          }))
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "Preise konnten nicht geladen werden.");
       } finally {

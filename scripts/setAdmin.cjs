@@ -1,10 +1,37 @@
 // scripts/setAdmin.cjs
 const admin = require('firebase-admin');
 const path = require('path');
+const fs = require('fs');
 
-// Pfad zu deiner Service-Account-JSON
-const serviceAccountPath = path.resolve(__dirname, '..', 'sa-keys', 'antjes-ankerplatz-admin.json');
-const serviceAccount = require(serviceAccountPath);
+function parseServiceAccountFromEnv(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // optional base64 support
+    const decoded = Buffer.from(raw, 'base64').toString('utf8');
+    return JSON.parse(decoded);
+  }
+}
+
+function loadServiceAccount() {
+  const fromJsonEnv = parseServiceAccountFromEnv(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  if (fromJsonEnv) return fromJsonEnv;
+
+  const explicitPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const fallbackPath = path.resolve(__dirname, '..', 'sa-keys', 'antjes-ankerplatz-admin.json');
+  const serviceAccountPath = explicitPath ? path.resolve(explicitPath) : fallbackPath;
+
+  if (!fs.existsSync(serviceAccountPath)) {
+    throw new Error(
+      'Service-Account fehlt. Setze FIREBASE_SERVICE_ACCOUNT_JSON oder FIREBASE_SERVICE_ACCOUNT_PATH/GOOGLE_APPLICATION_CREDENTIALS.'
+    );
+  }
+
+  return require(serviceAccountPath);
+}
+
+const serviceAccount = loadServiceAccount();
 
 // Admin SDK initialisieren
 admin.initializeApp({

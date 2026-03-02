@@ -37,9 +37,13 @@ service cloud.firestore {
 
       // Mitglieder-Verwaltung je Property
       match /members/{uid} {
-        // Lesen: Admin ODER eingeloggter Nutzer, dessen E-Mail im Dokument steht
+        // Lesen: Admin ODER der betroffene Nutzer selbst (uid) ODER
+        // eingeloggter Nutzer, dessen E-Mail im Dokument steht.
+        // Der uid-Fallback verhindert Lockouts, wenn ältere Member-Dokumente
+        // noch kein `email`-Feld enthalten.
         allow read: if
           isAdmin() ||
+          (isSignedIn() && request.auth.uid == uid) ||
           (isSignedIn() && resource.data.email is string && resource.data.email == request.auth.token.email);
 
         // Rollen/Mitglieder pflegt nur der Admin
@@ -188,6 +192,14 @@ service cloud.firestore {
       allow update, delete: if
         isAdmin() ||
         (isSignedIn() && resource.data.propertyId is string && canManageProperty(resource.data.propertyId));
+    }
+
+    // Rollen-Dokumente je Nutzer (roles/{uid})
+    match /roles/{uid} {
+      // Nutzer darf nur das eigene Rollendokument lesen.
+      // Admin darf alle lesen/schreiben.
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create, update, delete: if isAdmin();
     }
 
     // Optional: eigenes Nutzerprofil (falls vorhanden)

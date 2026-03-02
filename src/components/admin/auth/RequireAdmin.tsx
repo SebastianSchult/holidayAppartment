@@ -4,6 +4,7 @@ import { useAuth } from "../../../app/providers/AuthProvider";// Pfad ggf. anpas
 import { db } from "../../../lib/firebase"; // Pfad ggf. anpassen
 import {
   collectionGroup,
+  documentId,
   getDocs,
   limit,
   query,
@@ -33,21 +34,18 @@ export default function RequireAdmin() {
         return;
       }
 
-      // Token einmal hart refreshen, damit neue Claims (isAdmin) sicher drin sind
+      // 1) Admin-Claim schnell prüfen (ohne erzwungenen Token-Refresh)
       try {
-        await user.getIdToken(true);
-      } catch {
-        // ignore
-      }
-
-      // 1) Admin-Claim schnell prüfen
-      const token = await user.getIdTokenResult();
-      if (token.claims?.isAdmin === true) {
-        if (!cancelled) {
-          setHasAccess(true);
-          setChecking(false);
+        const token = await user.getIdTokenResult();
+        if (token.claims?.isAdmin === true) {
+          if (!cancelled) {
+            setHasAccess(true);
+            setChecking(false);
+          }
+          return;
         }
-        return;
+      } catch (e) {
+        console.warn("[RequireAdmin] token claim check failed", e);
       }
 
       // 2a) Schneller Fallback zuerst: direkter Doc-Read unter properties/{DEFAULT_PROP}/members/{uid}
@@ -67,7 +65,25 @@ export default function RequireAdmin() {
         console.warn("[RequireAdmin] direct member doc read failed", e);
       }
 
-      // 2b) Fallback: members (collection group) per E-Mail
+      // 2b) Fallback: members (collection group) per UID
+      try {
+        const qByUid = query(
+          collectionGroup(db, "members"),
+          where(documentId(), "==", user.uid),
+          limit(1)
+        );
+        const snapByUid = await getDocs(qByUid);
+        if (!cancelled && !snapByUid.empty) {
+          console.debug("[RequireAdmin] cg members by uid ✓");
+          setHasAccess(true);
+          setChecking(false);
+          return;
+        }
+      } catch (e) {
+        console.warn("[RequireAdmin] membership uid check failed:", e);
+      }
+
+      // 2c) Fallback: members (collection group) per E-Mail
       try {
         const email = user.email ?? "";
         if (!email) {
@@ -104,7 +120,13 @@ export default function RequireAdmin() {
       }
     }
 
-    run();
+    run().catch((e) => {
+      console.warn("[RequireAdmin] guard check failed:", e);
+      if (!cancelled) {
+        setHasAccess(false);
+        setChecking(false);
+      }
+    });
     return () => {
       cancelled = true;
     };
