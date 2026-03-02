@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";// Pfad ggf. anpassen, falls anders
-import { db } from "../../../lib/firebase"; // Pfad ggf. anpassen
+import { db } from "../../../lib/firebaseDb"; // Pfad ggf. anpassen
 import {
   collectionGroup,
   documentId,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { signOut } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { auth } from "../lib/firebaseAuth";
 import PropertyForm from "../components/admin/PropertyForm";
 import SeasonsTable from "../components/admin/SeasonsTable";
 import TaxesTable from "../components/admin/TaxesTable";
