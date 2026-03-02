@@ -2,7 +2,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import React from 'react';
 import { auth, db } from '../../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface AuthCtx {
   user: User | null;
@@ -21,16 +21,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isAdmin, setIsAdmin] = React.useState(false);
-  const [roleLoading, setRoleLoading] = React.useState(false);
 
   React.useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      if (u) {
-        setRoleLoading(true);
-      } else {
+      if (!u) {
         setIsAdmin(false);
-        setRoleLoading(false);
       }
       setLoading(false);
     });
@@ -38,24 +34,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    if (!user) { setIsAdmin(false); return; }
-    const ref = doc(db, 'roles', user.uid);
-    const unsub = onSnapshot(ref, (snap) => {
-      const data = snap.data() as RoleDoc | undefined;
-      setIsAdmin(!!(data && data.admin === true));
-      setRoleLoading(false);
-    }, () => {
+    let cancelled = false;
+    if (!user) {
       setIsAdmin(false);
-      setRoleLoading(false);
-    });
-    return () => unsub();
+      return;
+    }
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'roles', user.uid));
+        if (cancelled) return;
+        const data = snap.data() as RoleDoc | undefined;
+        setIsAdmin(!!(data && data.admin === true));
+      } catch {
+        if (cancelled) return;
+        setIsAdmin(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const ctxValue = React.useMemo(() => ({
     user,
-    loading: loading || roleLoading,
+    loading,
     isAdmin,
-  }), [user, loading, roleLoading, isAdmin]);
+  }), [user, loading, isAdmin]);
 
   return (
     <AuthContext.Provider value={ctxValue}>

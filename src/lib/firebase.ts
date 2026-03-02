@@ -20,10 +20,11 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// Force long polling everywhere to avoid WebChannel/CORS hiccups (esp. Safari)
+// Long polling can be significantly slower. Keep it opt-in via ENV for edge networks only.
+const forceLongPolling = import.meta.env.VITE_FIRESTORE_FORCE_LONG_POLLING === '1';
 const firestoreSettings: FirestoreSettings = {
   ignoreUndefinedProperties: true,
-  experimentalForceLongPolling: true,
+  ...(forceLongPolling ? { experimentalForceLongPolling: true } : {}),
 };
 
 // Optional verbose Firestore logging for diagnosing permission issues
