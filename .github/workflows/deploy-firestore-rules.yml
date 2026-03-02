@@ -36,20 +36,45 @@ jobs:
       - name: Validate required secret
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
-          if [ -z "${FIREBASE_SERVICE_ACCOUNT_JSON:-}" ]; then
-            echo "::error::Missing required secret: FIREBASE_SERVICE_ACCOUNT_JSON"
+          sa="${FIREBASE_SERVICE_ACCOUNT_JSON:-}"
+          if [ -z "$sa" ]; then
+            sa="${FIREBASE_SERVICE_ACCOUNT:-}"
+          fi
+          if [ -z "$sa" ]; then
+            echo "::error::Missing required secret: set FIREBASE_SERVICE_ACCOUNT_JSON (preferred) or FIREBASE_SERVICE_ACCOUNT"
             exit 1
           fi
 
       - name: Configure Google credentials
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
+          sa="${FIREBASE_SERVICE_ACCOUNT_JSON:-}"
+          if [ -z "$sa" ]; then
+            sa="${FIREBASE_SERVICE_ACCOUNT:-}"
+          fi
+          if [ -z "$sa" ]; then
+            echo "::error::No Firebase service account secret value found."
+            exit 1
+          fi
+
+          # Accept raw JSON or base64-encoded JSON for convenience.
+          if ! printf '%s' "$sa" | jq -e . >/dev/null 2>&1; then
+            decoded="$(printf '%s' "$sa" | base64 --decode 2>/dev/null || true)"
+            if [ -z "$decoded" ] || ! printf '%s' "$decoded" | jq -e . >/dev/null 2>&1; then
+              echo "::error::Firebase service account secret is neither valid JSON nor valid base64-encoded JSON."
+              exit 1
+            fi
+            sa="$decoded"
+          fi
+
           key_path="$RUNNER_TEMP/firebase-service-account.json"
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$key_path"
+          printf '%s' "$sa" > "$key_path"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$key_path" >> "$GITHUB_ENV"
 
       - name: Deploy Firestore rules
