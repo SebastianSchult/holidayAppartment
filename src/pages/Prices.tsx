@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getFirstProperty, getProperty, listSeasons } from "../lib/db";
+import { getFirstPropertyLite, getPropertyLite, listSeasonsLite } from "../lib/publicPricingData";
 
 type Row = {
   id: string;
@@ -29,13 +29,13 @@ export default function Prices() {
           ?.trim();
 
         let resolvedPropId: string | null = null;
-        let resolvedProp: Awaited<ReturnType<typeof getProperty>> = null;
-        let seasonsData: Awaited<ReturnType<typeof listSeasons>> = [];
+        let resolvedProp: Awaited<ReturnType<typeof getPropertyLite>> = null;
+        let seasonsData: Awaited<ReturnType<typeof listSeasonsLite>> = [];
 
         if (envId) {
           const [propResult, seasonsResult] = await Promise.allSettled([
-            getProperty(envId),
-            listSeasons(envId),
+            getPropertyLite(envId),
+            listSeasonsLite(envId),
           ]);
           if (propResult.status === "fulfilled" && propResult.value) {
             resolvedPropId = envId;
@@ -47,7 +47,7 @@ export default function Prices() {
         }
 
         if (!resolvedProp || !resolvedPropId) {
-          const first = await getFirstProperty();
+          const first = await getFirstPropertyLite();
           if (!first?.data) {
             setRows([]);
             return;
@@ -55,7 +55,7 @@ export default function Prices() {
           resolvedPropId = first.id;
           resolvedProp = first.data;
           if (!envId || envId !== resolvedPropId) {
-            seasonsData = await listSeasons(resolvedPropId);
+            seasonsData = await listSeasonsLite(resolvedPropId);
           }
         }
 

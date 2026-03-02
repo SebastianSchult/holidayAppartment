@@ -1,7 +1,7 @@
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, updateDoc, where, setDoc, runTransaction, Timestamp
 } from "firebase/firestore";
-import { auth, db } from "../lib/firebase";
+import { db } from "../lib/firebaseDb";
 import type { Property, Season, TouristTaxBand, Booking, Role } from "./schemas";
 import { COL } from "./schemas";
 
@@ -17,6 +17,7 @@ async function sendAdminActionMail(
     return {ok: false, detail: "mail_api_missing"};
   }
 
+  const { auth } = await import("../lib/firebaseAuth");
   const currentUser = auth.currentUser;
   if (!currentUser) {
     console.warn("[mail] admin action skipped – no authenticated user");
