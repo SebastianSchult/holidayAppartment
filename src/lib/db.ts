@@ -1,5 +1,5 @@
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, updateDoc, where, setDoc, runTransaction, Timestamp
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, updateDoc, where, setDoc, runTransaction, Timestamp
 } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import type { Property, Season, TouristTaxBand, Booking, Role } from "./schemas";
@@ -77,7 +77,7 @@ async function sendAdminActionMail(
 
 /** Properties */
 export async function getFirstProperty(): Promise<{ id: string; data: Property } | null> {
-  const snap = await getDocs(query(collection(db, COL.properties)));
+  const snap = await getDocs(query(collection(db, COL.properties), limit(1)));
   if (snap.empty) return null;
   const d = snap.docs[0];
   return { id: d.id, data: d.data() as Property };
