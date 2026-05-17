@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  buildGalleryImagePath,
+  buildGallerySrcSet,
+  buildGalleryVariantPath,
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
 
@@ -170,7 +171,9 @@ export default function Home() {
               style={{ transitionDuration: `${SLIDESHOW_TRANSITION_MS}ms` }}
             >
               <img
-                src={buildGalleryImagePath(GALLERY_IMAGES[activeSlide])}
+                src={buildGalleryVariantPath(GALLERY_IMAGES[activeSlide], 1600)}
+                srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeSlide])}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
                 alt={`Ferienwohnung Ansicht ${activeSlide + 1}`}
                 className="h-full w-full object-cover"
                 loading="eager"
@@ -184,7 +187,9 @@ export default function Home() {
               style={{ transitionDuration: `${SLIDESHOW_TRANSITION_MS}ms` }}
             >
               <img
-                src={buildGalleryImagePath(GALLERY_IMAGES[nextSlide])}
+                src={buildGalleryVariantPath(GALLERY_IMAGES[nextSlide], 1600)}
+                srcSet={buildGallerySrcSet(GALLERY_IMAGES[nextSlide])}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
                 alt={`Ferienwohnung Ansicht ${nextSlide + 1}`}
                 className="h-full w-full object-cover"
                 loading="lazy"
