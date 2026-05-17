@@ -73,8 +73,13 @@ test.describe("Public routes smoke", () => {
 
   test("language toggle switches to english labels", async ({ page }) => {
     await runSmoke(page, "/", async (activePage) => {
-      await expect(activePage.getByRole("button", { name: "EN" })).toBeVisible();
-      await activePage.getByRole("button", { name: "EN" }).click();
+      const languageSwitch = activePage.getByRole("group", { name: /sprache|language/i });
+      const englishButton = languageSwitch.getByRole("button", {
+        name: "EN",
+        exact: true,
+      });
+      await expect(englishButton).toBeVisible();
+      await englishButton.click();
       await expect(activePage.getByRole("link", { name: "Gallery" })).toBeVisible();
       await expect(activePage.getByRole("link", { name: "Prices" })).toBeVisible();
       await expect(activePage.getByRole("link", { name: "Book" })).toBeVisible();
