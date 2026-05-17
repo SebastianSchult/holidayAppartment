@@ -172,6 +172,7 @@ PHP (`backend-php/config.php`):
 
 ### Dateien
 - Richtwert: **maximal 400 Zeilen pro Datei**.
+- Ausnahme: Sprachdateien (z. B. `src/i18n/translations.ts`) dürfen diesen Wert überschreiten, wenn eine sinnvolle Aufteilung fachlich unpraktisch wäre.
 - Wenn eine Datei zu groß wird:
   - aufteilen
   - Hilfsfunktionen auslagern
