@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getFirstPropertyLite, getPropertyLite, listSeasonsLite } from "../lib/publicPricingData";
 import { useLanguage, useT } from "../i18n/useLanguage";
+import { Seo } from "../components/Seo";
 
 type Row = {
   id: string;
@@ -95,6 +96,12 @@ export default function Prices() {
 
   return (
     <section className="space-y-8">
+      <Seo
+        title={t("seo.pricesTitle", { propertyName })}
+        description={t("seo.pricesDescription")}
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt={t("home.heroAlt")}
+      />
       <header className="text-center">
         <h1 className="text-3xl font-semibold tracking-tight">{t("prices.title", { propertyName })}</h1>
         <p className="mt-2 text-slate-600">

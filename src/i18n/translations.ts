@@ -19,6 +19,29 @@ export const de: TranslationDictionary = {
   "app.footer.imprint": "Impressum",
   "app.footer.privacy": "Datenschutz",
 
+  "seo.homeTitle": "Ferienwohnung Antjes Ankerplatz in Cuxhaven an der Nordsee",
+  "seo.homeDescription":
+    "Maritime Ferienwohnung in Cuxhaven: strandnah, mit Parkplatz, WLAN und direkter Buchungsanfrage online.",
+  "seo.galleryTitle": "Bildergalerie der Ferienwohnung Antjes Ankerplatz",
+  "seo.galleryDescription":
+    "Entdecke Bilder von Wohnbereich, Schlafzimmer, Küche und Umgebung der Ferienwohnung.",
+  "seo.pricesTitle": ({ propertyName }: TranslationParams) =>
+    `${propertyName} - Preise und Saisonübersicht`,
+  "seo.pricesDescription":
+    "Transparente Nachtpreise, Endreinigung und Saisonübersicht für deine Ferienwohnung in Cuxhaven.",
+  "seo.bookingTitle": "Buchung anfragen für Antjes Ankerplatz in Cuxhaven",
+  "seo.bookingDescription":
+    "Prüfe die Verfügbarkeit und sende deine Buchungsanfrage für den gewünschten Zeitraum direkt online.",
+  "seo.imprintTitle": "Impressum | Antjes Ankerplatz",
+  "seo.imprintDescription":
+    "Kontakt, Anschrift und rechtliche Angaben zur Ferienwohnung Antjes Ankerplatz.",
+  "seo.privacyTitle": "Datenschutzerklärung | Antjes Ankerplatz",
+  "seo.privacyDescription":
+    "Informationen zur Verarbeitung personenbezogener Daten, Cookies und Kontaktanfragen.",
+  "seo.loginTitle": "Anmeldung | Antjes Ankerplatz",
+  "seo.loginDescription":
+    "Zugang für den geschützten Verwaltungsbereich der Ferienwohnung.",
+
   "cookie.title": "Cookie-Einstellungen",
   "cookie.description":
     "Wir nutzen notwendige Cookies und bieten dir optionale Kategorien für Statistik und Marketing an.",
@@ -215,6 +238,29 @@ export const en: TranslationDictionary = {
   "app.footer.bookNow": "Book now",
   "app.footer.imprint": "Legal notice",
   "app.footer.privacy": "Privacy",
+
+  "seo.homeTitle": "Antjes Ankerplatz holiday apartment in Cuxhaven by the North Sea",
+  "seo.homeDescription":
+    "Maritime holiday apartment in Cuxhaven: near the beach, with parking, Wi-Fi and direct online booking inquiry.",
+  "seo.galleryTitle": "Photo gallery of Antjes Ankerplatz",
+  "seo.galleryDescription":
+    "Explore photos of the living area, bedrooms, kitchen, and surroundings of the apartment.",
+  "seo.pricesTitle": ({ propertyName }: TranslationParams) =>
+    `${propertyName} - prices and seasonal overview`,
+  "seo.pricesDescription":
+    "Transparent nightly rates, cleaning fee, and seasonal overview for your holiday apartment in Cuxhaven.",
+  "seo.bookingTitle": "Request a booking for Antjes Ankerplatz in Cuxhaven",
+  "seo.bookingDescription":
+    "Check availability and send your booking request for the desired period directly online.",
+  "seo.imprintTitle": "Legal notice | Antjes Ankerplatz",
+  "seo.imprintDescription":
+    "Contact details, address, and legal information for Antjes Ankerplatz.",
+  "seo.privacyTitle": "Privacy policy | Antjes Ankerplatz",
+  "seo.privacyDescription":
+    "Information about personal data, cookies, and contact requests.",
+  "seo.loginTitle": "Sign in | Antjes Ankerplatz",
+  "seo.loginDescription":
+    "Access for the protected administration area of the holiday apartment.",
   "cookie.title": "Cookie settings",
   "cookie.description":
     "We use essential cookies and offer optional categories for statistics and marketing.",

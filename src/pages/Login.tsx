@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/providers/AuthProvider';
 import { auth } from '../lib/firebaseAuth';
 import { useT } from '../i18n/useLanguage';
+import { Seo } from '../components/Seo';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -75,6 +76,13 @@ export default function Login() {
   if (user) {
     return (
       <section className="space-y-4">
+        <Seo
+          title={t("login.adminTitle")}
+          description={t("seo.loginDescription")}
+          image="/hero/cuxhaven-hero-1280.jpg"
+          imageAlt={t("home.heroAlt")}
+          noIndex
+        />
         <h1 className="text-xl font-semibold">{t("login.adminTitle")}</h1>
         <p>{t("login.loggedInAs", { email: user.email ?? "" })}</p>
         <button onClick={doLogout} className="rounded bg-gray-800 px-3 py-2 text-white">{t("login.logout")}</button>
@@ -84,6 +92,13 @@ export default function Login() {
 
   return (
     <section className="mx-auto max-w-md space-y-6">
+      <Seo
+        title={mode === 'login' ? t("seo.loginTitle") : t("login.titleRegister")}
+        description={t("seo.loginDescription")}
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt={t("home.heroAlt")}
+        noIndex
+      />
       <h1 className="text-xl font-semibold">{mode === 'login' ? t("login.titleLogin") : t("login.titleRegister")}</h1>
 
       <form onSubmit={mode === 'login' ? doLogin : doRegister} className="space-y-3">

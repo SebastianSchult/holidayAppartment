@@ -1,6 +1,14 @@
+import { Seo } from "../components/Seo";
+
 export default function Privacy() {
   return (
     <div className="max-w-3xl mx-auto p-6 prose">
+      <Seo
+        title="Datenschutzerklärung"
+        description="Informationen zur Verarbeitung personenbezogener Daten, Cookies und Kontaktanfragen."
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt="Meerblick"
+      />
       <h1 className="text-2xl font-bold mb-4">Datenschutzerklärung</h1>
       <p className="mb-4">
         Der Schutz Ihrer persönlichen Daten ist uns wichtig. Diese Website verarbeitet personenbezogene Daten

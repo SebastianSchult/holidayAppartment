@@ -1,16 +1,65 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildGallerySrcSet,
   buildGalleryVariantPath,
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
 import { useT } from "../i18n/useLanguage";
+import { Seo } from "../components/Seo";
 
 const SLIDESHOW_INTERVAL_MS = 9000;
 const SLIDESHOW_TRANSITION_MS = 3200;
 
 export default function Home() {
   const t = useT();
+  const homeDescription = t("seo.homeDescription");
+  const homeTitle = t("seo.homeTitle");
+  const homeJsonLd = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "VacationRental",
+      name: "Antjes Ankerplatz",
+      description: homeDescription,
+      url: "/",
+      image: [
+        "/hero/cuxhaven-hero-640.jpg",
+        "/hero/cuxhaven-hero-960.jpg",
+        "/hero/cuxhaven-hero-1280.jpg",
+      ],
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "Spangerstr. 9",
+        postalCode: "27476",
+        addressLocality: "Cuxhaven",
+        addressCountry: "DE",
+      },
+      telephone: "+49 4721 21508",
+      email: "mutzi@antjes-ankerplatz.net",
+      amenityFeature: [
+        {
+          "@type": "LocationFeatureSpecification",
+          name: "Strandnah",
+          value: true,
+        },
+        {
+          "@type": "LocationFeatureSpecification",
+          name: "Kostenloses Parken",
+          value: true,
+        },
+        {
+          "@type": "LocationFeatureSpecification",
+          name: "Haustiere erlaubt",
+          value: true,
+        },
+        {
+          "@type": "LocationFeatureSpecification",
+          name: "WLAN & Smart-TV",
+          value: true,
+        },
+      ],
+    }),
+    [homeDescription],
+  );
   const totalSlides = GALLERY_IMAGES.length;
   const [activeSlide, setActiveSlide] = useState(0);
   const [isSliding, setIsSliding] = useState(false);
@@ -47,6 +96,13 @@ export default function Home() {
 
   return (
     <section className="relative w-full">
+      <Seo
+        title={homeTitle}
+        description={homeDescription}
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt={t("home.heroAlt")}
+        jsonLd={homeJsonLd}
+      />
       <div className="relative h-[52vh] w-full overflow-hidden rounded-[14px] md:h-[64vh]">
         <picture>
           <source

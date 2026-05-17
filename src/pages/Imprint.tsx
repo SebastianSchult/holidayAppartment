@@ -1,6 +1,14 @@
+import { Seo } from "../components/Seo";
+
 export default function Imprint() {
   return (
     <section className="max-w-3xl mx-auto p-6 prose">
+      <Seo
+        title="Impressum"
+        description="Kontakt, Anschrift und rechtliche Angaben zur Ferienwohnung Antjes Ankerplatz."
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt="Meerblick"
+      />
       <h1 className="text-2xl font-bold mb-6">Impressum</h1>
       <address className="not-italic mb-4">
         <p className="mb-4"><strong>Antja & Siebo Remmers</strong></p>

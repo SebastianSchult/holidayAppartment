@@ -17,6 +17,7 @@ import {
   loadUnavailableDates,
   sendBookingRequestMail,
 } from "./booking/services";
+import { Seo } from "../components/Seo";
 
 const MIN_NIGHTS = 2;
 
@@ -314,6 +315,12 @@ export default function Booking() {
 
   return (
     <section className="space-y-6">
+      <Seo
+        title={t("seo.bookingTitle")}
+        description={t("seo.bookingDescription")}
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt={t("home.heroAlt")}
+      />
       <header className="text-center">
         <h1 className="text-3xl font-semibold tracking-tight">
           {t("booking.heading", { propertyName })}

@@ -8,6 +8,8 @@ import { getFirstProperty } from "../lib/db";
 import BookingsTable from "../components/admin/BookingsTable";
 import { cancelBooking } from "../lib/db";
 import OccupancyCalendar from "../components/admin/OccupancyCalendar";
+import { Seo } from "../components/Seo";
+import { useT } from "../i18n/useLanguage";
 
 type TabKey = "property" | "seasons" | "taxes" | "bookings" | "calendar";
 
@@ -28,6 +30,7 @@ function panelId(key: TabKey): string {
 }
 
 export default function AdminDashboard() {
+  const t = useT();
   const [tab, setTab] = useState<TabKey>("property");
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +82,13 @@ export default function AdminDashboard() {
 
   return (
     <section className="space-y-6">
+      <Seo
+        title="Admin"
+        description={t("seo.loginDescription")}
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt={t("home.heroAlt")}
+        noIndex
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Admin</h1>
         <button
