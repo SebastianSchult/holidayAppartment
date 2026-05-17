@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
   buildGalleryImagePath,
-  buildGallerySrcSet,
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
 
@@ -68,25 +67,13 @@ export default function Gallery() {
             onClick={() => setActiveIndex(index)}
             className="group relative z-0 overflow-hidden rounded-xl shadow-sm transition-transform duration-300 ease-out hover:z-20 hover:scale-[1.25] focus:outline-none focus-visible:z-20 focus-visible:scale-[1.25] focus-visible:ring-2 focus-visible:ring-[color:var(--ocean,#0e7490)]"
           >
-            <picture>
-              <source
-                type="image/avif"
-                srcSet={buildGallerySrcSet(fileName, "avif")}
-                sizes="(max-width: 768px) 48vw, (max-width: 1024px) 31vw, 24vw"
-              />
-              <source
-                type="image/webp"
-                srcSet={buildGallerySrcSet(fileName, "webp")}
-                sizes="(max-width: 768px) 48vw, (max-width: 1024px) 31vw, 24vw"
-              />
-              <img
-                src={buildGalleryImagePath(fileName)}
-                alt={`Ferienwohnung Ansicht ${index + 1}`}
-                className="aspect-[4/3] w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            </picture>
+            <img
+              src={buildGalleryImagePath(fileName)}
+              alt={`Ferienwohnung Ansicht ${index + 1}`}
+              className="aspect-[4/3] w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           </button>
         ))}
       </div>
@@ -125,25 +112,13 @@ export default function Gallery() {
             className="max-h-full max-w-6xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <picture>
-              <source
-                type="image/avif"
-                srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeIndex], "avif")}
-                sizes="(max-width: 768px) 92vw, (max-width: 1280px) 86vw, 1280px"
-              />
-              <source
-                type="image/webp"
-                srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeIndex], "webp")}
-                sizes="(max-width: 768px) 92vw, (max-width: 1280px) 86vw, 1280px"
-              />
-              <img
-                src={buildGalleryImagePath(GALLERY_IMAGES[activeIndex])}
-                alt={`Ferienwohnung Ansicht ${activeIndex + 1}`}
-                className="max-h-[85vh] max-w-full rounded-lg object-contain"
-                loading="eager"
-                decoding="async"
-              />
-            </picture>
+            <img
+              src={buildGalleryImagePath(GALLERY_IMAGES[activeIndex])}
+              alt={`Ferienwohnung Ansicht ${activeIndex + 1}`}
+              className="max-h-[85vh] max-w-full rounded-lg object-contain"
+              loading="eager"
+              decoding="async"
+            />
             <figcaption className="mt-3 text-center text-sm text-white/90">
               Bild {activeIndex + 1} von {GALLERY_IMAGES.length}
             </figcaption>
