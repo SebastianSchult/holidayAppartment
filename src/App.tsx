@@ -7,14 +7,14 @@ export default function App() {
   const isBookingPage = pathname.startsWith("/book");
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-[color:var(--color-canvas)] text-[color:var(--color-ink)]">
       <NavBar />
-      <main className="w-full px-6 md:px-12 py-8 pb-24 md:pb-8">
+      <main className="w-full px-6 py-8 pb-24 md:px-12 md:pb-8">
         <AppRoutes />
       </main>
-      {/* Desktop/Tablet Footer */}
-      <footer className="hidden md:block border-t border-slate-200/70 bg-white/60">
-        <div className="mx-auto max-w-6xl px-6 py-6 text-sm text-slate-600 flex flex-wrap items-center justify-between gap-3">
+
+      <footer className="hidden border-t border-[color:var(--color-hairline)] bg-white md:block">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-sm text-[color:var(--color-muted)]">
           <div>© {new Date().getFullYear()} Antjes Ankerplatz</div>
           <nav className="space-x-4">
             <a href="/impressum" className="hover:underline">Impressum</a>
@@ -23,17 +23,16 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Mobile Footer (fixed) */}
-      <footer className="fixed inset-x-0 bottom-0 z-40 block bg-white/95 p-3 shadow md:hidden">
+      <footer className="fixed inset-x-0 bottom-0 z-40 block border-t border-[color:var(--color-hairline)] bg-white/95 p-3 backdrop-blur-sm md:hidden">
         {!isBookingPage && (
           <button
             onClick={() => location.assign("/book")}
-            className="w-full rounded-xl bg-[color:var(--ocean,#0e7490)] py-3 text-center font-semibold text-white"
+            className="air-btn-primary w-full"
           >
             Jetzt buchen
           </button>
         )}
-        <div className="mt-2 text-center text-xs text-slate-500">
+        <div className="mt-2 text-center text-xs text-[color:var(--color-muted)]">
           <a href="/impressum" className="mx-2 underline">Impressum</a>
           <span aria-hidden>·</span>
           <a href="/datenschutz" className="mx-2 underline">Datenschutz</a>

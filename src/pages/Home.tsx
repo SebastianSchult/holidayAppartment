@@ -45,7 +45,7 @@ export default function Home() {
 
   return (
     <section className="relative w-full">
-      <div className="relative h-[52vh] w-full overflow-hidden md:h-[64vh]">
+      <div className="relative h-[52vh] w-full overflow-hidden rounded-[14px] md:h-[64vh]">
         <picture>
           <source
             type="image/avif"
@@ -74,41 +74,41 @@ export default function Home() {
       </div>
 
       <div className="relative z-10 mx-auto -mt-16 max-w-6xl px-4">
-        <div className="rounded-2xl bg-white p-4 shadow-xl md:p-6">
-          <h1 className="text-2xl font-semibold text-slate-900 md:text-3xl">
+        <div className="air-card air-shadow-tier rounded-[14px] bg-white p-4 md:p-6">
+          <h1 className="text-[28px] font-bold leading-[1.43] text-[color:var(--color-ink)]">
             Ferienwohnung Antjes Ankerplatz
           </h1>
-          <p className="mt-1 text-slate-600">
+          <p className="mt-1 text-[color:var(--color-body)]">
             Maritimer Komfort, 2000 m bis zur Nordsee – jetzt Verfügbarkeit
             prüfen.
           </p>
 
           <form className="mt-4 grid gap-3 md:grid-cols-4">
             <label className="md:col-span-1">
-              <span className="mb-1 block text-sm text-slate-700">Anreise</span>
+              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">Anreise</span>
               <input
-                className="w-full rounded-lg border p-3"
+                className="input"
                 type="date"
               />
             </label>
             <label className="md:col-span-1">
-              <span className="mb-1 block text-sm text-slate-700">Abreise</span>
+              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">Abreise</span>
               <input
-                className="w-full rounded-lg border p-3"
+                className="input"
                 type="date"
               />
             </label>
             <label className="md:col-span-1">
-              <span className="mb-1 block text-sm text-slate-700">Gäste</span>
+              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">Gäste</span>
               <input
-                className="w-full rounded-lg border p-3"
+                className="input"
                 type="number"
                 min={1}
                 defaultValue={2}
               />
             </label>
             <button
-              className="rounded-lg bg-[color:var(--ocean,#0e7490)] px-5 py-3 font-medium text-white hover:opacity-90"
+              className="air-btn-primary w-full"
               type="button"
               onClick={() => location.assign("/book")}
             >
@@ -118,7 +118,7 @@ export default function Home() {
         </div>
       </div>
 
-      <section className="mt-8 bg-[color:var(--sand,#f4ede4)] py-8 md:mt-12 md:py-12">
+      <section className="mt-8 bg-[color:var(--color-surface-soft)] py-8 md:mt-12 md:py-12">
         <h2 className="sr-only">Ausstattungsmerkmale</h2>
         <div className="mx-auto grid max-w-6xl gap-4 px-4 md:grid-cols-4">
           {[
@@ -127,26 +127,26 @@ export default function Home() {
             { t: "Haustiere erlaubt", d: "auf Anfrage" },
             { t: "WLAN & Smart-TV", d: "inklusive" },
           ].map((it) => (
-            <article key={it.t} className="rounded-xl bg-white p-4 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-900">{it.t}</h3>
-              <p className="text-sm text-slate-600">{it.d}</p>
+            <article key={it.t} className="air-card rounded-[14px] bg-white p-4">
+              <h3 className="text-base font-semibold text-[color:var(--color-ink)]">{it.t}</h3>
+              <p className="text-sm text-[color:var(--color-muted)]">{it.d}</p>
             </article>
           ))}
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-10 md:py-12">
-        <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm md:p-6">
-          <h2 className="text-xl font-semibold text-slate-900 md:text-2xl">
+        <div className="air-card mb-6 rounded-[14px] bg-white p-5 md:p-6">
+          <h2 className="text-[21px] font-bold leading-[1.43] text-[color:var(--color-ink)] md:text-[22px] md:font-medium md:leading-[1.18]">
             Wohnungsbeschreibung
           </h2>
-          <p className="mt-2 text-slate-700">
+          <p className="mt-2 text-[color:var(--color-body)]">
             Antjes Ankerplatz ist eine gemütliche, maritime Ferienwohnung für
             entspannte Tage an der Nordsee. Die Wohnung bietet einen hellen
             Wohnbereich, eine gut ausgestattete Küche und komfortable
             Schlafmöglichkeiten für Paare und Familien.
           </p>
-          <p className="mt-2 text-slate-700">
+          <p className="mt-2 text-[color:var(--color-body)]">
             Dank der strandnahen Lage, eigenem Stellplatz und kurzer Wege zu
             Einkaufsmöglichkeiten ist sie ein idealer Ausgangspunkt für
             Erholung, Spaziergänge und Ausflüge rund um Cuxhaven.
@@ -154,15 +154,15 @@ export default function Home() {
         </div>
 
         <div className="mb-5">
-          <h2 className="text-xl font-semibold text-slate-900 md:text-2xl">
+          <h2 className="text-[21px] font-bold leading-[1.43] text-[color:var(--color-ink)] md:text-[22px] md:font-medium md:leading-[1.18]">
             Bildergalerie
           </h2>
-          <p className="mt-1 text-slate-600">
+          <p className="mt-1 text-[color:var(--color-muted)]">
             Die Bilder laufen automatisch von rechts nach links durch.
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-slate-100 shadow-lg">
+        <div className="air-shadow-tier overflow-hidden rounded-[14px] bg-[color:var(--color-surface-soft)]">
           <div className="relative aspect-[16/9] w-full">
             <picture
               className={`absolute inset-0 ${slideMotionClass} ${

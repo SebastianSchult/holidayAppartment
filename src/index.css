@@ -1,21 +1,59 @@
 @import "tailwindcss";
 @import "react-day-picker/dist/style.css";
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+}
 
 :root {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  --navy:#0b1f2a; --ocean:#0e7490; --seafoam:#e0f2f1; --sand:#f4ede4; --coral:#f97316;
+  --font-sans:
+    "Airbnb Cereal VF",
+    Circular,
+    -apple-system,
+    system-ui,
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  --color-primary: #ff385c;
+  --color-primary-active: #e00b41;
+  --color-primary-disabled: #ffd1da;
+  --color-canvas: #ffffff;
+  --color-surface-soft: #f7f7f7;
+  --color-surface-strong: #f2f2f2;
+  --color-hairline: #dddddd;
+  --color-hairline-soft: #ebebeb;
+  --color-border-strong: #c1c1c1;
+  --color-ink: #222222;
+  --color-body: #3f3f3f;
+  --color-muted: #6a6a6a;
+  --color-muted-soft: #929292;
+  --ocean: var(--color-primary);
+  --seafoam: var(--color-surface-soft);
+  --sand: var(--color-surface-soft);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-xl: 32px;
+  --radius-full: 9999px;
+  --shadow-tier: rgba(0, 0, 0, 0.02) 0 0 0 1px, rgba(0, 0, 0, 0.04) 0 2px 6px 0,
+    rgba(0, 0, 0, 0.1) 0 4px 8px 0;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--color-canvas);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;   /* WebKit */
-  -moz-osx-font-smoothing: grayscale;    /* macOS Firefox */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: var(--color-hairline);
 }
 
 #root {
@@ -23,31 +61,106 @@ body {
   min-height: 100vh;
 }
 
-/* DayPicker – maritime theme */
+.air-shadow-tier {
+  box-shadow: var(--shadow-tier);
+}
+
+.air-card {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+}
+
+.air-btn-primary {
+  height: 48px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  padding: 0 24px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.air-btn-primary:hover {
+  background: var(--color-primary-active);
+}
+
+.air-btn-primary:disabled {
+  background: var(--color-primary-disabled);
+  cursor: not-allowed;
+}
+
+.air-btn-secondary {
+  height: 48px;
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 0 24px;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.input {
+  width: 100%;
+  min-height: 56px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 14px 12px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-width: 2px;
+  border-color: var(--color-ink);
+}
+
+.input::placeholder {
+  color: var(--color-muted);
+}
+
+.air-search-pill {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-full);
+  background: #fff;
+  box-shadow: var(--shadow-tier);
+}
+
+.air-focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .rdp {
-  --rdp-accent-color: var(--ocean, #0e7490);
-  --rdp-background-color: var(--seafoam, #e0f2f1);
-  --rdp-accent-color-dark: var(--ocean, #0e7490);
+  --rdp-accent-color: var(--color-primary);
+  --rdp-background-color: var(--color-surface-soft);
+  --rdp-accent-color-dark: var(--color-primary-active);
   --rdp-outline: 2px solid var(--rdp-accent-color);
 }
 
 .rdp .rdp-day_selected,
 .rdp .rdp-day_selected:focus-visible,
 .rdp .rdp-day_selected:hover {
-  background-color: var(--ocean, #0e7490);
+  background-color: var(--color-ink);
   color: white;
+  border-radius: 9999px;
 }
 
 .rdp .rdp-day_disabled {
-  opacity: 0.45;
-  text-decoration: line-through;
+  opacity: 0.35;
 }
 
 .rdp .rdp-caption_label {
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--color-ink);
 }
 
 .rdp .rdp-day:not(.rdp-day_disabled):hover {
-  background-color: var(--seafoam, #e0f2f1);
-  border-radius: 0.375rem; /* leichte Rundung */
+  background-color: var(--color-surface-soft);
+  border-radius: 9999px;
 }
