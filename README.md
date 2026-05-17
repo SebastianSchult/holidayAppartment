@@ -62,11 +62,14 @@ VITE_ASSET_BASE_URL=
 VITE_FIRESTORE_DEBUG=0
 VITE_USE_EMULATORS=0
 VITE_AUTH_EMULATOR=0
+VITE_GA_MEASUREMENT_ID=
+VITE_SITE_URL=https://www.deine-domain.de
 ```
 
 Notes:
 - `VITE_DEFAULT_PROPERTY_ID` is required for booking/admin data loading.
 - If `VITE_MAIL_API_URL` is not set, frontend falls back to `/api/send-booking-mail.php`.
+- `VITE_SITE_URL` is used to generate canonical URLs, `robots.txt`, and `sitemap.xml` during the build.
 
 ### 3. Run frontend
 
@@ -97,11 +100,41 @@ npm --prefix functions run serve
 - `npm run lint:frontend` lint frontend
 - `npm run typecheck:frontend` TypeScript project references check (`tsc -b`)
 - `npm run build:frontend` build frontend
+- `npm run build:frontend` build frontend and generate SEO assets (`robots.txt`, `sitemap.xml`)
 - `npm run lint:functions` lint functions
 - `npm run build:functions` build functions
+- `npm run seed:property` idempotent Firestore seed/repair for `properties/{id}` (+ optional `members/{uid}`)
 - `npm run lint` alias for `lint:frontend`
 - `npm run build` alias for `build:frontend`
 - `npm run ci` run frontend + functions checks end-to-end
+
+### Seed Property and Member (Recovery Helper)
+
+Use this when `properties` was deleted or needs to be recreated quickly.
+
+Example:
+
+```bash
+npm run seed:property -- \
+  --propertyId HiiCb9HW986xnpEnFh80 \
+  --adminEmail your-admin@example.com
+```
+
+What it does:
+- upserts `properties/{propertyId}` with safe defaults
+- optionally resolves auth user by `--adminEmail` and upserts `properties/{propertyId}/members/{uid}` with role `manager`
+
+Credential sources (first match wins):
+- `--serviceAccount <path>` or `FIREBASE_SERVICE_ACCOUNT_PATH`
+- `FIREBASE_SERVICE_ACCOUNT_JSON`
+- `GOOGLE_APPLICATION_CREDENTIALS`
+- fallback file: `sa-keys/antjes-ankerplatz-admin.json`
+
+Dry run:
+
+```bash
+npm run seed:property -- --propertyId HiiCb9HW986xnpEnFh80 --adminEmail your-admin@example.com --dryRun
+```
 
 ### Functions (`functions/package.json`)
 
@@ -157,6 +190,8 @@ Optional:
 - `VITE_FIRESTORE_DEBUG`
 - `VITE_USE_EMULATORS`
 - `VITE_AUTH_EMULATOR`
+- `VITE_GA_MEASUREMENT_ID` (loads Google Analytics only after statistics consent)
+- `VITE_SITE_URL` (base URL for canonical tags and sitemap generation)
 
 Important:
 - Do **not** use `VITE_MAIL_API_KEY`. The frontend no longer sends a mail API key.

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>http://localhost:5173/</loc>
+    <lastmod>2026-05-17</lastmod>
+  </url>
+  <url>
+    <loc>http://localhost:5173/gallery</loc>
+    <lastmod>2026-05-17</lastmod>
+  </url>
+  <url>
+    <loc>http://localhost:5173/prices</loc>
+    <lastmod>2026-05-17</lastmod>
+  </url>
+  <url>
+    <loc>http://localhost:5173/book</loc>
+    <lastmod>2026-05-17</lastmod>
+  </url>
+  <url>
+    <loc>http://localhost:5173/impressum</loc>
+    <lastmod>2026-05-17</lastmod>
+  </url>
+  <url>
+    <loc>http://localhost:5173/datenschutz</loc>
+    <lastmod>2026-05-17</lastmod>
+  </url>
+</urlset>

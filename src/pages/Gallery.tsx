@@ -5,9 +5,12 @@ import {
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
 import { useT } from "../i18n/useLanguage";
+import { Seo } from "../components/Seo";
 
 export default function Gallery() {
   const t = useT();
+  const galleryTitle = t("seo.galleryTitle");
+  const galleryDescription = t("seo.galleryDescription");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const lightboxTitleId = useId();
@@ -52,6 +55,12 @@ export default function Gallery() {
 
   return (
     <section className="mx-auto max-w-6xl">
+      <Seo
+        title={galleryTitle}
+        description={galleryDescription}
+        image="/hero/cuxhaven-hero-1280.jpg"
+        imageAlt={t("home.heroAlt")}
+      />
       <div className="mb-5">
         <h1 className="text-2xl font-semibold text-slate-900 md:text-3xl">
           {t("gallery.title")}
