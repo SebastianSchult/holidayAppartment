@@ -1,32 +1,31 @@
-// src/pages/Booking.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  listSeasons,
-  listTaxBands,
-  createBookingRequest,
-  isRangeAvailable,
-  listUnavailableNights,
-  getProperty,
-  getFirstProperty,
-} from "../lib/db";
-import type { Property, Season, TouristTaxBand } from "../lib/schemas";
-import { priceForStay, touristTaxForStay } from "../lib/pricing";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+import { createBookingRequest, isRangeAvailable } from "../lib/db";
+import type { Property, Season, TouristTaxBand } from "../lib/schemas";
+import { priceForStay, touristTaxForStay } from "../lib/pricing";
 import { useLanguage, useT } from "../i18n/useLanguage";
+import { Field } from "./booking/BookingField";
+import { BookingContactFields } from "./booking/BookingContactFields";
+import { BookingAvailabilityInfo } from "./booking/BookingAvailabilityInfo";
+import { BookingNoticeToast } from "./booking/BookingNoticeToast";
+import { BookingSummaryCard } from "./booking/BookingSummaryCard";
+import { buildNightlyBreakdown, calculateNights, formatLocalISO, type Notice } from "./booking/utils";
+import {
+  loadBookingInitData,
+  loadUnavailableDates,
+  sendBookingRequestMail,
+} from "./booking/services";
 
-// Format a JS Date to YYYY-MM-DD in **local** time (no UTC shift)
-function formatLocalISO(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+const MIN_NIGHTS = 2;
+
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
 export default function Booking() {
   const { language, locale, dateFnsLocale } = useLanguage();
-  const t = useT();
+  const t = useT() as TranslateFn;
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,138 +38,58 @@ export default function Booking() {
   const [seasons, setSeasons] = useState<(Season & { id: string })[]>([]);
   const [taxBands, setTaxBands] = useState<(TouristTaxBand & { id: string })[]>([]);
 
-  // Form-States
   const today = new Date();
   const plus3 = new Date(today.getTime() + 3 * 86400000);
+
+  const [range, setRange] = useState<DateRange | undefined>({ from: today, to: plus3 });
   const [start, setStart] = useState<string>(formatLocalISO(today));
   const [end, setEnd] = useState<string>(formatLocalISO(plus3));
-  const [adults, setAdults] = useState<number>(2); // Kurtaxe-pflichtig (≥16)
-  const [children, setChildren] = useState<number>(0); // 0–15 Jahre, keine Kurtaxe
 
-  const [range, setRange] = useState<DateRange | undefined>({
-    from: today,
-    to: plus3,
-  });
+  const [adults, setAdults] = useState<number>(2);
+  const [children, setChildren] = useState<number>(0);
+
   const [blocked, setBlocked] = useState<Date[]>([]);
-  const [requestedDisabled, setRequestedDisabled] = useState<Date[]>([]);
-  const MIN_NIGHTS = 2;
+  const [avail, setAvail] = useState<"idle" | "checking" | "available" | "unavailable">("idle");
 
-  // Kontaktfelder
   const [name, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
   const [message, setMessage] = useState<string>("");
 
-  // NEU: Anschrift
   const [street, setStreet] = useState<string>("");
   const [zip, setZip] = useState<string>("");
   const [city, setCity] = useState<string>("");
-  const [country, setCountry] = useState<string>(
-    language === "de" ? "Deutschland" : "Germany",
-  );
+  const [country, setCountry] = useState<string>(language === "de" ? "Deutschland" : "Germany");
 
-  // Submit-Status
   const [submitting, setSubmitting] = useState(false);
 
-  // Toast notice state and timer
-  type Notice = { type: "success" | "error"; text: string };
   const [notice, setNotice] = useState<Notice | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
-  function flash(n: Notice) {
-    if (toastTimer.current) window.clearTimeout(toastTimer.current);
-    setNotice(n);
+
+  function flash(nextNotice: Notice) {
+    if (toastTimer.current) {
+      window.clearTimeout(toastTimer.current);
+    }
+    setNotice(nextNotice);
     toastTimer.current = window.setTimeout(() => setNotice(null), 8000);
   }
-
-  // Verfügbarkeits-Prüfung
-  const [avail, setAvail] = useState<"idle" | "checking" | "available" | "unavailable">("idle");
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        console.debug("[booking] init – start");
-        const envId = (import.meta as unknown as { env: Record<string, string | undefined> }).env
-          .VITE_DEFAULT_PROPERTY_ID
-          ?.trim();
-
-        let resolvedPropertyId: string | null = null;
-        let propertyData: Property | null = null;
-        let seasonsData: (Season & { id: string })[] = [];
-        let taxBandsData: (TouristTaxBand & { id: string })[] = [];
-
-        if (envId) {
-          const [propResult, seasonsResult, taxBandsResult] = await Promise.allSettled([
-            getProperty(envId),
-            listSeasons(envId),
-            listTaxBands(envId),
-          ]);
-
-          propertyData = propResult.status === "fulfilled" ? propResult.value : null;
-          if (seasonsResult.status === "fulfilled") {
-            seasonsData = seasonsResult.value;
-          } else {
-            console.warn("[booking] listSeasons failed for default property id", seasonsResult.reason);
-          }
-          if (taxBandsResult.status === "fulfilled") {
-            taxBandsData = taxBandsResult.value;
-          } else {
-            console.warn("[booking] listTaxBands failed for default property id", taxBandsResult.reason);
-          }
-
-          if (propertyData) {
-            resolvedPropertyId = envId;
-          } else {
-            console.warn("[booking] default property id not found, using fallback", envId);
-          }
-        }
-
-        if (!resolvedPropertyId || !propertyData) {
-          const firstProperty = await getFirstProperty();
-          if (!firstProperty) {
-            throw new Error(t("booking.noProperty"));
-          }
-          resolvedPropertyId = firstProperty.id;
-          propertyData = firstProperty.data;
-
-          const [seasonsResult, taxBandsResult] = await Promise.allSettled([
-            listSeasons(resolvedPropertyId),
-            listTaxBands(resolvedPropertyId),
-          ]);
-          if (seasonsResult.status === "fulfilled") {
-            seasonsData = seasonsResult.value;
-          } else {
-            console.warn("[booking] listSeasons failed for fallback property id", seasonsResult.reason);
-            seasonsData = [];
-          }
-          if (taxBandsResult.status === "fulfilled") {
-            taxBandsData = taxBandsResult.value;
-          } else {
-            console.warn("[booking] listTaxBands failed for fallback property id", taxBandsResult.reason);
-            taxBandsData = [];
-          }
-        }
-
-        if (!resolvedPropertyId || !propertyData) {
-          throw new Error(t("booking.propertyLoadError"));
-        }
-
-        setPropertyId(resolvedPropertyId);
-        setPropertyName(propertyData.name || t("booking.defaultPropertyName"));
-        setCurrency(propertyData.currency || "EUR");
-        setDefaultRate(propertyData.defaultNightlyRate ?? 0);
-        setCleaningFee(propertyData.cleaningFee ?? 0);
-
-        seasonsData.sort((a, b) => a.startDate.localeCompare(b.startDate));
-        taxBandsData.sort((a, b) => (a.zone || "").localeCompare(b.zone || ""));
-        setSeasons(seasonsData);
-        setTaxBands(taxBandsData);
-
-        console.debug("[booking] init – done]");
-      } catch (e) {
-        console.error("[booking] init FAILED", e);
-        setError(e instanceof Error ? e.message : t("booking.loadError"));
+        const initData = await loadBookingInitData(t("booking.defaultPropertyName"));
+        setPropertyId(initData.propertyId);
+        setPropertyName(initData.propertyName);
+        setCurrency(initData.currency);
+        setDefaultRate(initData.defaultRate);
+        setCleaningFee(initData.cleaningFee);
+        setSeasons(initData.seasons);
+        setTaxBands(initData.taxBands);
+      } catch (loadError) {
+        const fallback = loadError instanceof Error ? loadError.message : "booking.loadError";
+        setError(t(fallback));
       } finally {
         setLoading(false);
       }
@@ -178,30 +97,22 @@ export default function Booking() {
   }, [t]);
 
   useEffect(() => {
-    if (range?.from) setStart(formatLocalISO(range.from));
-    if (range?.to) setEnd(formatLocalISO(range.to));
+    if (range?.from) {
+      setStart(formatLocalISO(range.from));
+    }
+    if (range?.to) {
+      setEnd(formatLocalISO(range.to));
+    }
   }, [range]);
 
   useEffect(() => {
     (async () => {
       if (!propertyId) return;
       try {
-        console.debug("[booking] listUnavailableNights →", propertyId);
-        const now = new Date();
-        const fromISO = formatLocalISO(now);
-        const oneYearAhead = new Date(now);
-        oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
-        const toISO = formatLocalISO(oneYearAhead);
-        const dates = await listUnavailableNights(propertyId, fromISO, toISO);
-        console.debug("[booking] listUnavailableNights ✓", dates.length);
-        // IMPORTANT: use local noon to avoid DST/UTC edge cases where the day shifts
-        setBlocked(dates.map(d => new Date(d + "T12:00:00")));
-
-        // Öffentliche Nutzer: keine zusätzlichen deaktivierten Tage (bereits in listUnavailableNights enthalten)
-        setRequestedDisabled([]);
-      } catch (e) {
-        console.error("[booking] listUnavailableNights FAILED", e);
-        setRequestedDisabled([]);
+        const unavailable = await loadUnavailableDates(propertyId);
+        setBlocked(unavailable);
+      } catch {
+        setBlocked([]);
       }
     })();
   }, [propertyId]);
@@ -209,11 +120,7 @@ export default function Booking() {
   useEffect(() => {
     setCountry((previous) => {
       const trimmed = previous.trim();
-      if (
-        trimmed === "" ||
-        trimmed === "Deutschland" ||
-        trimmed === "Germany"
-      ) {
+      if (trimmed === "" || trimmed === "Deutschland" || trimmed === "Germany") {
         return language === "de" ? "Deutschland" : "Germany";
       }
       return previous;
@@ -228,6 +135,7 @@ export default function Booking() {
   const calc = useMemo(() => {
     try {
       if (!propertyId) return null;
+
       const property: Property = {
         id: propertyId,
         name: propertyName,
@@ -247,93 +155,117 @@ export default function Booking() {
 
       const base = priceForStay(property, seasons, start, end);
       const tax = touristTaxForStay(taxBands, start, end, adults);
-      const grandTotal = base.total + tax.total;
-      return { base, tax, grandTotal };
+      return { base, tax, grandTotal: base.total + tax.total };
     } catch {
       return null;
     }
   }, [propertyId, propertyName, currency, defaultRate, cleaningFee, seasons, taxBands, start, end, adults]);
 
-  const nights = useMemo(() => {
-    const a = new Date(start + "T12:00:00");
-    const b = new Date(end + "T12:00:00");
-    const diff = Math.round((b.getTime() - a.getTime()) / 86400000);
-    return Math.max(0, diff);
-  }, [start, end]);
+  const nights = useMemo(() => calculateNights(start, end), [start, end]);
 
   useEffect(() => {
     let alive = true;
-    async function run() {
-      if (!propertyId || nights <= 0 || nights < MIN_NIGHTS) { setAvail("idle"); return; }
+
+    async function checkAvailability() {
+      if (!propertyId || nights <= 0 || nights < MIN_NIGHTS) {
+        setAvail("idle");
+        return;
+      }
+
       setAvail("checking");
       try {
-        console.debug("[booking] isRangeAvailable →", { propertyId, start, end, nights });
-        const ok = await isRangeAvailable(propertyId, start, end);
+        const available = await isRangeAvailable(propertyId, start, end);
         if (!alive) return;
-        console.debug("[booking] isRangeAvailable ✓", ok);
-        setAvail(ok ? "available" : "unavailable");
-      } catch (e) {
+        setAvail(available ? "available" : "unavailable");
+      } catch {
         if (!alive) return;
-        console.error("[booking] isRangeAvailable FAILED", e);
         setAvail("unavailable");
       }
     }
-    const t = setTimeout(run, 300);
-    return () => { alive = false; clearTimeout(t); };
+
+    const timeoutId = setTimeout(checkAvailability, 300);
+    return () => {
+      alive = false;
+      clearTimeout(timeoutId);
+    };
   }, [propertyId, start, end, nights]);
 
-  async function submitRequest(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const nightlyBreakdown = useMemo(() => {
+    if (!propertyId) return [];
+    return buildNightlyBreakdown({
+      start,
+      end,
+      seasons,
+      defaultRate,
+      adults,
+      getTaxForNight: (nightStart, nightEnd, countAdults) =>
+        touristTaxForStay(taxBands, nightStart, nightEnd, countAdults).total,
+      fallbackRateLabel: t("booking.rateLabelStandard"),
+    });
+  }, [propertyId, start, end, seasons, defaultRate, taxBands, adults, t]);
+
+  async function submitRequest(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     if (!propertyId || !calc) {
       flash({ type: "error", text: t("booking.invalidRange") });
       return;
     }
+
     if (avail !== "available") {
       flash({ type: "error", text: t("booking.rangeUnavailable") });
       return;
     }
+
+    if (!name.trim() || !email.trim()) {
+      flash({ type: "error", text: t("booking.requiredNameEmail") });
+      return;
+    }
+
+    if (!street.trim() || !zip.trim() || !city.trim()) {
+      flash({ type: "error", text: t("booking.requiredAddress") });
+      return;
+    }
+
     setSubmitting(true);
-    console.log("[booking] submit →", { propertyId, start, end, adults, children, name, email });
     try {
-      if (!name.trim() || !email.trim()) {
-        flash({ type: "error", text: t("booking.requiredNameEmail") });
-        return;
-      }
-      if (!street.trim() || !zip.trim() || !city.trim()) {
-        flash({ type: "error", text: t("booking.requiredAddress") });
-        return;
-      }
+      const normalized = {
+        startDate: start,
+        endDate: end,
+        adults: Number(adults),
+        children: Number(children),
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        message: message.trim(),
+        address: {
+          street: street.trim(),
+          zip: zip.trim(),
+          city: city.trim(),
+          country: country.trim(),
+        },
+      };
 
-      // --- Werte strikt normalisieren, damit Firestore-Rules (Typen) sicher passen
-      const startISO = start; // bereits YYYY-MM-DD
-      const endISO = end;     // bereits YYYY-MM-DD
-      const adultsNum = Number(adults);
-      const childrenNum = Number(children);
-      const nameClean = name.trim();
-      const emailClean = email.trim();
-      const phoneClean = phone.trim();
-      const messageClean = message.trim();
-
-      if (!emailClean) {
+      if (!normalized.email) {
         flash({ type: "error", text: t("booking.requiredValidEmail") });
         return;
       }
 
       await createBookingRequest({
-        propertyId: String(propertyId),
-        startDate: startISO,
-        endDate: endISO,
-        adults: adultsNum,
-        children: childrenNum,
+        propertyId,
+        startDate: normalized.startDate,
+        endDate: normalized.endDate,
+        adults: normalized.adults,
+        children: normalized.children,
         status: "requested",
         contact: {
-          name: nameClean,
-          email: emailClean,
-          phone: phoneClean,
+          name: normalized.name,
+          email: normalized.email,
+          phone: normalized.phone,
           language,
-          address: { street, zip, city, country },
+          address: normalized.address,
         },
-        message: messageClean,
+        message: normalized.message,
         summary: {
           nights,
           nightlyTotal: calc.base.nightsTotal,
@@ -343,282 +275,109 @@ export default function Booking() {
           currency,
         },
       });
-      console.log("[booking] submit – createBookingRequest ✓");
 
-      let mailSent = false;
-      let mailErrorText = "";
+      const mailResult = await sendBookingRequestMail({
+        propertyId,
+        propertyName,
+        startDate: normalized.startDate,
+        endDate: normalized.endDate,
+        adults: normalized.adults,
+        children: normalized.children,
+        contact: {
+          name: normalized.name,
+          email: normalized.email,
+          phone: normalized.phone,
+          language,
+          address: normalized.address,
+        },
+        message: normalized.message,
+        language,
+      });
 
-      // Ohne Blaze: Mailversand direkt über den PHP-Endpoint (ohne Frontend-API-Key).
-      try {
-        const mailUrl = (import.meta.env.VITE_MAIL_API_URL as string | undefined)?.trim() || "/api/send-booking-mail.php";
-        console.log("[mail] POST →", mailUrl);
-        const resp = await fetch(mailUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            type: "booking_request",
-            propertyId: String(propertyId),
-            propertyName,
-            startDate: startISO,
-            endDate: endISO,
-            adults: adultsNum,
-            children: childrenNum,
-            contact: {
-              name: nameClean,
-              email: emailClean,
-              phone: phoneClean,
-              language,
-              address: { street, zip, city, country },
-            },
-            message: messageClean,
-            language,
-          }),
-        });
-
-        const payload = await resp.json().catch(() => null) as
-          | { ok?: boolean; error?: string; status?: { owner?: string; guest?: string } }
-          | null;
-
-        mailSent = resp.ok && payload?.ok !== false;
-        if (!mailSent) {
-          const ownerStatus = payload?.status?.owner;
-          const guestStatus = payload?.status?.guest;
-          const serverError = payload?.error;
-          mailErrorText = [serverError, ownerStatus, guestStatus].filter(Boolean).join(" | ");
-          if (!mailErrorText) mailErrorText = `HTTP ${resp.status}`;
-          console.warn("[mail] send failed", resp.status, payload);
-        } else {
-          console.log("[mail] send ok", payload);
-        }
-      } catch (err) {
-        mailErrorText = err instanceof Error ? err.message : "fetch_failed";
-        console.warn("[mail] fetch error", err);
-      }
-
-      if (mailSent) {
+      if (mailResult.sent) {
         flash({ type: "success", text: t("booking.submitSuccess") });
       } else {
         flash({
           type: "error",
-          text: t("booking.submitMailFailed", { reason: mailErrorText || "" }),
+          text: t("booking.submitMailFailed", { reason: mailResult.reason || "" }),
         });
       }
-    } catch (err) {
-      console.error("[booking] submit FAILED", err);
-      flash({ type: "error", text: err instanceof Error ? err.message : t("booking.submitError") });
+    } catch (submitError) {
+      flash({
+        type: "error",
+        text: submitError instanceof Error ? submitError.message : t("booking.submitError"),
+      });
     } finally {
       setSubmitting(false);
     }
   }
 
-  const nightlyBreakdown = useMemo(() => {
-    if (!propertyId) return [] as { date: string; label: string; rate: number; tax: number; subtotal: number }[];
-    const out: { date: string; label: string; rate: number; tax: number; subtotal: number }[] = [];
-    const startDate = new Date(start + "T00:00:00");
-    const endDate = new Date(end + "T00:00:00");
-    for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
-      const iso = formatLocalISO(d);
-      const next = new Date(d); next.setDate(next.getDate() + 1);
-      const nextIso = formatLocalISO(next);
-      const season = seasons.find((s) => iso >= s.startDate && iso < s.endDate);
-      const label = season?.name || t("booking.rateLabelStandard");
-      const rate = season?.nightlyRate ?? defaultRate;
-      // Kurtaxe für genau diese eine Nacht berechnen (nur Erwachsene)
-      const taxObj = touristTaxForStay(taxBands, iso, nextIso, adults);
-      const tax = taxObj.total;
-      const subtotal = rate + tax;
-      out.push({ date: iso, label, rate, tax, subtotal });
-    }
-    return out;
-  }, [propertyId, start, end, seasons, defaultRate, taxBands, adults, t]);
-
   return (
     <section className="space-y-6">
       <header className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("booking.heading", { propertyName })}</h1>
-        <p className="mt-2 text-slate-600">
-          {t("booking.subheading")}
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          {t("booking.heading", { propertyName })}
+        </h1>
+        <p className="mt-2 text-slate-600">{t("booking.subheading")}</p>
       </header>
 
-      {/* Formular */}
       <form id="booking-form" className="grid gap-4" onSubmit={submitRequest}>
-        <div>
-          <Field label={t("booking.fieldDateRange")}>
-            <DayPicker
-              mode="range"
-              locale={dateFnsLocale}
-              numberOfMonths={2}
-              fromDate={new Date()}
-              selected={range}
-              onSelect={setRange}
-              disabled={[{ before: new Date() }, ...blocked, ...requestedDisabled]}
-            />
-          </Field>
-        </div>
+        <Field label={t("booking.fieldDateRange")}>
+          <DayPicker
+            mode="range"
+            locale={dateFnsLocale}
+            numberOfMonths={2}
+            fromDate={new Date()}
+            selected={range}
+            onSelect={setRange}
+            disabled={[{ before: new Date() }, ...blocked]}
+          />
+        </Field>
+
         <Field label={t("booking.fieldAdults")}>
-          <input className="input" type="number" min={0} value={adults} onChange={(e)=>setAdults(Number(e.target.value))} />
+          <input
+            className="input"
+            type="number"
+            min={0}
+            value={adults}
+            onChange={(event) => setAdults(Number(event.target.value))}
+          />
         </Field>
+
         <Field label={t("booking.fieldChildren")}>
-          <input className="input" type="number" min={0} value={children} onChange={(e)=>setChildren(Number(e.target.value))} />
+          <input
+            className="input"
+            type="number"
+            min={0}
+            value={children}
+            onChange={(event) => setChildren(Number(event.target.value))}
+          />
         </Field>
 
-        {/* Kontakt */}
-        <div className="grid gap-4">
-          <Field label={t("booking.fieldName")}>
-            <input className="input" value={name} onChange={(e)=>setName(e.target.value)} placeholder={t("booking.placeholderName")} />
-          </Field>
-          <Field label={t("booking.fieldEmail")}>
-            <input className="input" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@example.com" />
-          </Field>
-          <Field label={t("booking.fieldPhoneOptional")}>
-            <input className="input" value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="+49 …" />
-          </Field>
+        <BookingContactFields
+          t={(key) => t(key)}
+          values={{ name, email, phone, message, street, zip, city, country }}
+          setters={{ setName, setEmail, setPhone, setMessage, setStreet, setZip, setCity, setCountry }}
+        />
 
-          {/* NEU: Anschrift */}
-          <div className="grid gap-4">
-            <Field label={t("booking.fieldStreet")}>
-              <input
-                className="input"
-                value={street}
-                onChange={(e)=>setStreet(e.target.value)}
-                placeholder={t("booking.placeholderStreet")}
-              />
-            </Field>
-            <Field label={t("booking.fieldZip")}>
-              <input
-                className="input"
-                value={zip}
-                onChange={(e)=>setZip(e.target.value)}
-                placeholder="27476"
-              />
-            </Field>
-            <Field label={t("booking.fieldCity")}>
-              <input
-                className="input"
-                value={city}
-                onChange={(e)=>setCity(e.target.value)}
-                placeholder={t("booking.placeholderCity")}
-              />
-            </Field>
-            <Field label={t("booking.fieldCountry")}>
-              <input
-                className="input"
-                value={country}
-                onChange={(e)=>setCountry(e.target.value)}
-                placeholder={t("booking.placeholderCountry")}
-              />
-            </Field>
-          </div>
+        <BookingSummaryCard
+          loading={loading}
+          error={error}
+          nights={nights}
+          calc={calc}
+          nightlyBreakdown={nightlyBreakdown}
+          locale={locale}
+          fmt={fmt}
+          t={t}
+        />
 
-          <div>
-            <Field label={t("booking.fieldMessageOptional")}>
-              <textarea className="input" rows={3} value={message} onChange={(e)=>setMessage(e.target.value)} placeholder={t("booking.placeholderMessage")} />
-            </Field>
-          </div>
-        </div>
-      {/* Ergebnis */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        {loading ? (
-          <p className="text-slate-600">{t("booking.loading")}</p>
-        ) : error ? (
-          <p className="text-red-700">{error}</p>
-        ) : nights <= 0 ? (
-          <p className="text-slate-600">{t("booking.invalidNightCount")}</p>
-        ) : calc ? (
-          <div className="grid gap-4">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">{t("booking.summaryTitle")}</h2>
-              <dl className="space-y-1">
-                <SummaryItem label={t("booking.summaryNights")} value={String(nights)} />
-                <SummaryItem label={t("booking.summaryStays")} value={fmt.format(calc.base.nightsTotal)} />
-                <SummaryItem label={t("booking.summaryCleaning")} value={fmt.format(calc.base.cleaningFee)} />
-                <SummaryItem label={t("booking.summaryTax")} value={fmt.format(calc.tax.total)} />
-              </dl>
-              <div className="mt-2 h-px bg-slate-200" />
-              <dl>
-                <SummaryItem label={t("booking.summaryTotal")} value={fmt.format(calc.grandTotal)} bold />
-              </dl>
-              <p className="mt-2 text-xs text-slate-500">{t("booking.summaryHint")}</p>
-            </div>
+        <BookingAvailabilityInfo
+          availability={avail}
+          nights={nights}
+          minNights={MIN_NIGHTS}
+          t={t}
+        />
 
-            <div className="space-y-2">
-              <h3 className="font-medium">{t("booking.notesTitle")}</h3>
-              <ul className="list-disc pl-5 text-sm text-slate-700">
-                <li>{t("booking.noteEndExclusive")}</li>
-                <li>{t("booking.noteSeasonRates")}</li>
-                <li>{t("booking.noteTax")}</li>
-              </ul>
-            </div>
-            <div>
-              <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 open:bg-white">
-                <summary className="cursor-pointer select-none font-medium">{t("booking.nightlyDetails")}</summary>
-                <div className="mt-2 overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <caption className="sr-only">
-                      {t("booking.nightlyCaption")}
-                    </caption>
-                    <thead>
-                      <tr className="text-left text-slate-600">
-                        <th scope="col" className="py-1 pr-3">{t("booking.colDate")}</th>
-                        <th scope="col" className="py-1 pr-3">{t("booking.colRateType")}</th>
-                        <th scope="col" className="py-1 pr-3 text-right">{t("booking.colRatePerNight")}</th>
-                        <th scope="col" className="py-1 pr-3 text-right">{t("booking.colTaxPerNight")}</th>
-                        <th scope="col" className="py-1 pr-3 text-right">{t("booking.colTotalPerNight")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {nightlyBreakdown.map((n) => (
-                        <tr key={n.date} className="border-t border-slate-200">
-                          <td className="py-1 pr-3">{new Date(n.date+"T00:00:00").toLocaleDateString(locale)}</td>
-                          <td className="py-1 pr-3">{n.label}</td>
-                          <td className="py-1 pr-3 text-right">{fmt.format(n.rate)}</td>
-                          <td className="py-1 pr-3 text-right">{fmt.format(n.tax)}</td>
-                          <td className="py-1 pr-3 text-right">{fmt.format(n.subtotal)}</td>
-                        </tr>
-                      ))}
-                      <tr className="border-t-2 border-slate-300 font-semibold">
-                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowStayTotal")}</td>
-                        <td className="py-1 pr-3 text-right">{fmt.format(calc.base.nightsTotal)}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowCleaning")}</td>
-                        <td className="py-1 pr-3 text-right">{fmt.format(calc.base.cleaningFee)}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowTaxTotal")}</td>
-                        <td className="py-1 pr-3 text-right">{fmt.format(calc.tax.total)}</td>
-                      </tr>
-                      <tr className="border-t-2 border-slate-300 font-semibold">
-                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowGrandTotal")}</td>
-                        <td className="py-1 pr-3 text-right">{fmt.format(calc.grandTotal)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            </div>
-          </div>
-        ) : (
-          <p className="text-slate-600">{t("booking.priceCalcError")}</p>
-        )}
-      </div>
-      {avail === "checking" && (
-        <p className="text-sm text-slate-500">{t("booking.availabilityChecking")}</p>
-      )}
-      {avail === "available" && (
-        <p className="text-sm text-green-700">{t("booking.availabilityAvailable")}</p>
-      )}
-      {avail === "unavailable" && (
-        <p className="text-sm text-red-700">{t("booking.availabilityUnavailable")}</p>
-      )}
-      {nights > 0 && nights < MIN_NIGHTS && (
-        <p className="text-sm text-amber-700">{t("booking.minStay", { nights: MIN_NIGHTS })}</p>
-      )}
-
-      <div className="space-y-2">
         <button
           type="submit"
           className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60"
@@ -626,47 +385,13 @@ export default function Booking() {
         >
           {submitting ? t("booking.submitSending") : t("booking.submit")}
         </button>
-      </div>
       </form>
-      {notice && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={[
-            "fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-xl px-4 py-2 shadow-lg ring-1 ring-black/10 text-white flex items-center gap-3",
-            notice.type === "success" ? "bg-green-600" : "bg-red-600",
-          ].join(" ")}
-        >
-          <span>{notice.text}</span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            className="rounded bg-white/20 px-2 py-1 text-sm hover:bg-white/30"
-            aria-label={t("booking.closeNotice")}
-            title={t("booking.closeNotice")}
-          >
-            ✕
-          </button>
-        </div>
-      )}
+
+      <BookingNoticeToast
+        notice={notice}
+        onClose={() => setNotice(null)}
+        closeLabel={t("booking.closeNotice")}
+      />
     </section>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block text-sm">
-      <span className="mb-1 block text-slate-600">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function SummaryItem({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className={["flex items-start justify-between gap-3", bold ? "font-semibold" : ""].filter(Boolean).join(" ") }>
-      <dt className="min-w-0">{label}</dt>
-      <dd className="shrink-0 text-right">{value}</dd>
-    </div>
   );
 }
