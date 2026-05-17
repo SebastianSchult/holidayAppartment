@@ -4,8 +4,10 @@ import {
   buildGalleryVariantPath,
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
+import { useT } from "../i18n/useLanguage";
 
 export default function Gallery() {
+  const t = useT();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const lightboxTitleId = useId();
@@ -52,11 +54,10 @@ export default function Gallery() {
     <section className="mx-auto max-w-6xl">
       <div className="mb-5">
         <h1 className="text-2xl font-semibold text-slate-900 md:text-3xl">
-          Galerie
+          {t("gallery.title")}
         </h1>
         <p className="mt-1 text-slate-600">
-          Klick auf ein Bild für die große Ansicht. Mit den Pfeiltasten kannst
-          du durchblättern.
+          {t("gallery.intro")}
         </p>
       </div>
 
@@ -72,7 +73,7 @@ export default function Gallery() {
               src={buildGalleryVariantPath(fileName, 640)}
               srcSet={buildGallerySrcSet(fileName)}
               sizes="(max-width: 768px) 48vw, (max-width: 1024px) 31vw, 24vw"
-              alt={`Ferienwohnung Ansicht ${index + 1}`}
+              alt={t("gallery.imageAlt", { index: index + 1 })}
               className="aspect-[4/3] w-full object-cover"
               loading="lazy"
               decoding="async"
@@ -89,14 +90,14 @@ export default function Gallery() {
           aria-modal="true"
           aria-labelledby={lightboxTitleId}
         >
-          <h2 id={lightboxTitleId} className="sr-only">Große Bildansicht</h2>
+          <h2 id={lightboxTitleId} className="sr-only">{t("gallery.lightboxTitle")}</h2>
           <button
             ref={closeButtonRef}
             type="button"
             onClick={closeLightbox}
             className="absolute right-3 top-3 rounded-md bg-white/90 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-white md:right-6 md:top-6"
           >
-            Schließen
+            {t("gallery.close")}
           </button>
 
           <button
@@ -106,7 +107,7 @@ export default function Gallery() {
               showPrevious();
             }}
             className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md bg-white/90 px-3 py-2 text-2xl leading-none text-slate-900 hover:bg-white md:left-6"
-            aria-label="Vorheriges Bild"
+            aria-label={t("gallery.prev")}
           >
             ‹
           </button>
@@ -119,13 +120,13 @@ export default function Gallery() {
               src={buildGalleryVariantPath(GALLERY_IMAGES[activeIndex], 1600)}
               srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeIndex])}
               sizes="(max-width: 768px) 92vw, (max-width: 1280px) 86vw, 1600px"
-              alt={`Ferienwohnung Ansicht ${activeIndex + 1}`}
+              alt={t("gallery.imageAlt", { index: activeIndex + 1 })}
               className="max-h-[85vh] max-w-full rounded-lg object-contain"
               loading="eager"
               decoding="async"
             />
             <figcaption className="mt-3 text-center text-sm text-white/90">
-              Bild {activeIndex + 1} von {GALLERY_IMAGES.length}
+              {t("gallery.count", { current: activeIndex + 1, total: GALLERY_IMAGES.length })}
             </figcaption>
           </figure>
 
@@ -136,7 +137,7 @@ export default function Gallery() {
               showNext();
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md bg-white/90 px-3 py-2 text-2xl leading-none text-slate-900 hover:bg-white md:right-6"
-            aria-label="Nächstes Bild"
+            aria-label={t("gallery.next")}
           >
             ›
           </button>

@@ -71,6 +71,19 @@ test.describe("Public routes smoke", () => {
     });
   });
 
+  test("language toggle switches to english labels", async ({ page }) => {
+    await runSmoke(page, "/", async (activePage) => {
+      await expect(activePage.getByRole("button", { name: "EN" })).toBeVisible();
+      await activePage.getByRole("button", { name: "EN" }).click();
+      await expect(activePage.getByRole("link", { name: "Gallery" })).toBeVisible();
+      await expect(activePage.getByRole("link", { name: "Prices" })).toBeVisible();
+      await expect(activePage.getByRole("link", { name: "Book" })).toBeVisible();
+      await expect(
+        activePage.getByRole("button", { name: "Check availability" }),
+      ).toBeVisible();
+    });
+  });
+
   test("gallery page renders heading", async ({ page }) => {
     await runSmoke(page, "/gallery", async (activePage) => {
       await expect(

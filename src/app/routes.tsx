@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
+import { useT } from "../i18n/useLanguage";
 
 const Home = lazy(() => import("../pages/Home"));
 const Gallery = lazy(() => import("../pages/Gallery"));
@@ -13,7 +14,8 @@ const Imprint = lazy(() => import("../pages/Imprint"));
 const Privacy = lazy(() => import("../pages/Privacy"));
 
 function RouteLoading() {
-  return <div className="p-4 text-slate-600">Laden …</div>;
+  const t = useT();
+  return <div className="p-4 text-slate-600">{t("routes.loading")}</div>;
 }
 
 export function AppRoutes() {

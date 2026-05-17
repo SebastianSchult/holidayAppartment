@@ -13,8 +13,8 @@ import type { Property, Season, TouristTaxBand } from "../lib/schemas";
 import { priceForStay, touristTaxForStay } from "../lib/pricing";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
-import { de } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
+import { useLanguage, useT } from "../i18n/useLanguage";
 
 // Format a JS Date to YYYY-MM-DD in **local** time (no UTC shift)
 function formatLocalISO(date: Date): string {
@@ -25,11 +25,13 @@ function formatLocalISO(date: Date): string {
 }
 
 export default function Booking() {
+  const { language, locale, dateFnsLocale } = useLanguage();
+  const t = useT();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [propertyId, setPropertyId] = useState<string | null>(null);
-  const [propertyName, setPropertyName] = useState<string>("Ferienwohnung");
+  const [propertyName, setPropertyName] = useState<string>(t("booking.defaultPropertyName"));
   const [currency, setCurrency] = useState<string>("EUR");
   const [defaultRate, setDefaultRate] = useState<number>(0);
   const [cleaningFee, setCleaningFee] = useState<number>(0);
@@ -63,7 +65,9 @@ export default function Booking() {
   const [street, setStreet] = useState<string>("");
   const [zip, setZip] = useState<string>("");
   const [city, setCity] = useState<string>("");
-  const [country, setCountry] = useState<string>("Deutschland");
+  const [country, setCountry] = useState<string>(
+    language === "de" ? "Deutschland" : "Germany",
+  );
 
   // Submit-Status
   const [submitting, setSubmitting] = useState(false);
@@ -125,7 +129,7 @@ export default function Booking() {
         if (!resolvedPropertyId || !propertyData) {
           const firstProperty = await getFirstProperty();
           if (!firstProperty) {
-            throw new Error("Keine Unterkunft gefunden. Bitte zuerst Stammdaten im Adminbereich anlegen.");
+            throw new Error(t("booking.noProperty"));
           }
           resolvedPropertyId = firstProperty.id;
           propertyData = firstProperty.data;
@@ -149,11 +153,11 @@ export default function Booking() {
         }
 
         if (!resolvedPropertyId || !propertyData) {
-          throw new Error("Unterkunft konnte nicht geladen werden.");
+          throw new Error(t("booking.propertyLoadError"));
         }
 
         setPropertyId(resolvedPropertyId);
-        setPropertyName(propertyData.name || "Ferienwohnung");
+        setPropertyName(propertyData.name || t("booking.defaultPropertyName"));
         setCurrency(propertyData.currency || "EUR");
         setDefaultRate(propertyData.defaultNightlyRate ?? 0);
         setCleaningFee(propertyData.cleaningFee ?? 0);
@@ -166,12 +170,12 @@ export default function Booking() {
         console.debug("[booking] init – done]");
       } catch (e) {
         console.error("[booking] init FAILED", e);
-        setError(e instanceof Error ? e.message : "Daten konnten nicht geladen werden.");
+        setError(e instanceof Error ? e.message : t("booking.loadError"));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (range?.from) setStart(formatLocalISO(range.from));
@@ -202,7 +206,24 @@ export default function Booking() {
     })();
   }, [propertyId]);
 
-  const fmt = useMemo(() => new Intl.NumberFormat("de-DE", { style: "currency", currency }), [currency]);
+  useEffect(() => {
+    setCountry((previous) => {
+      const trimmed = previous.trim();
+      if (
+        trimmed === "" ||
+        trimmed === "Deutschland" ||
+        trimmed === "Germany"
+      ) {
+        return language === "de" ? "Deutschland" : "Germany";
+      }
+      return previous;
+    });
+  }, [language]);
+
+  const fmt = useMemo(
+    () => new Intl.NumberFormat(locale, { style: "currency", currency }),
+    [currency, locale],
+  );
 
   const calc = useMemo(() => {
     try {
@@ -264,22 +285,22 @@ export default function Booking() {
   async function submitRequest(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!propertyId || !calc) {
-      flash({ type: "error", text: "Bitte zuerst einen gültigen Zeitraum auswählen." });
+      flash({ type: "error", text: t("booking.invalidRange") });
       return;
     }
     if (avail !== "available") {
-      flash({ type: "error", text: "Der gewählte Zeitraum ist aktuell nicht verfügbar." });
+      flash({ type: "error", text: t("booking.rangeUnavailable") });
       return;
     }
     setSubmitting(true);
     console.log("[booking] submit →", { propertyId, start, end, adults, children, name, email });
     try {
       if (!name.trim() || !email.trim()) {
-        flash({ type: "error", text: "Bitte Name und E-Mail angeben." });
+        flash({ type: "error", text: t("booking.requiredNameEmail") });
         return;
       }
       if (!street.trim() || !zip.trim() || !city.trim()) {
-        flash({ type: "error", text: "Bitte Straße, PLZ und Ort angeben." });
+        flash({ type: "error", text: t("booking.requiredAddress") });
         return;
       }
 
@@ -294,7 +315,7 @@ export default function Booking() {
       const messageClean = message.trim();
 
       if (!emailClean) {
-        flash({ type: "error", text: "Bitte eine gültige E-Mail angeben." });
+        flash({ type: "error", text: t("booking.requiredValidEmail") });
         return;
       }
 
@@ -309,6 +330,7 @@ export default function Booking() {
           name: nameClean,
           email: emailClean,
           phone: phoneClean,
+          language,
           address: { street, zip, city, country },
         },
         message: messageClean,
@@ -347,9 +369,11 @@ export default function Booking() {
               name: nameClean,
               email: emailClean,
               phone: phoneClean,
+              language,
               address: { street, zip, city, country },
             },
             message: messageClean,
+            language,
           }),
         });
 
@@ -374,13 +398,16 @@ export default function Booking() {
       }
 
       if (mailSent) {
-        flash({ type: "success", text: "Vielen Dank! Deine Anfrage wurde übermittelt und die Bestätigungsmail wurde versendet." });
+        flash({ type: "success", text: t("booking.submitSuccess") });
       } else {
-        flash({ type: "error", text: `Anfrage gespeichert, aber Mailversand fehlgeschlagen (${mailErrorText || "unbekannter Fehler"}).` });
+        flash({
+          type: "error",
+          text: t("booking.submitMailFailed", { reason: mailErrorText || "" }),
+        });
       }
     } catch (err) {
       console.error("[booking] submit FAILED", err);
-      flash({ type: "error", text: err instanceof Error ? err.message : "Anfrage konnte nicht gesendet werden." });
+      flash({ type: "error", text: err instanceof Error ? err.message : t("booking.submitError") });
     } finally {
       setSubmitting(false);
     }
@@ -396,7 +423,7 @@ export default function Booking() {
       const next = new Date(d); next.setDate(next.getDate() + 1);
       const nextIso = formatLocalISO(next);
       const season = seasons.find((s) => iso >= s.startDate && iso < s.endDate);
-      const label = season?.name || "Standard";
+      const label = season?.name || t("booking.rateLabelStandard");
       const rate = season?.nightlyRate ?? defaultRate;
       // Kurtaxe für genau diese eine Nacht berechnen (nur Erwachsene)
       const taxObj = touristTaxForStay(taxBands, iso, nextIso, adults);
@@ -405,24 +432,24 @@ export default function Booking() {
       out.push({ date: iso, label, rate, tax, subtotal });
     }
     return out;
-  }, [propertyId, start, end, seasons, defaultRate, taxBands, adults]);
+  }, [propertyId, start, end, seasons, defaultRate, taxBands, adults, t]);
 
   return (
     <section className="space-y-6">
       <header className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">Buchen – {propertyName}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{t("booking.heading", { propertyName })}</h1>
         <p className="mt-2 text-slate-600">
-          Wähle Zeitraum &amp; Gäste. Der Preis wird live berechnet (inkl. Endreinigung &amp; Kurtaxe ab 16 Jahren).
+          {t("booking.subheading")}
         </p>
       </header>
 
       {/* Formular */}
       <form id="booking-form" className="grid gap-4" onSubmit={submitRequest}>
         <div>
-          <Field label="Zeitraum wählen">
+          <Field label={t("booking.fieldDateRange")}>
             <DayPicker
               mode="range"
-              locale={de}
+              locale={dateFnsLocale}
               numberOfMonths={2}
               fromDate={new Date()}
               selected={range}
@@ -431,36 +458,36 @@ export default function Booking() {
             />
           </Field>
         </div>
-        <Field label="Erwachsene (≥16)">
+        <Field label={t("booking.fieldAdults")}>
           <input className="input" type="number" min={0} value={adults} onChange={(e)=>setAdults(Number(e.target.value))} />
         </Field>
-        <Field label="Kinder (0–15)">
+        <Field label={t("booking.fieldChildren")}>
           <input className="input" type="number" min={0} value={children} onChange={(e)=>setChildren(Number(e.target.value))} />
         </Field>
 
         {/* Kontakt */}
         <div className="grid gap-4">
-          <Field label="Name">
-            <input className="input" value={name} onChange={(e)=>setName(e.target.value)} placeholder="Vor- und Nachname" />
+          <Field label={t("booking.fieldName")}>
+            <input className="input" value={name} onChange={(e)=>setName(e.target.value)} placeholder={t("booking.placeholderName")} />
           </Field>
-          <Field label="E-Mail">
+          <Field label={t("booking.fieldEmail")}>
             <input className="input" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@example.com" />
           </Field>
-          <Field label="Telefon (optional)">
+          <Field label={t("booking.fieldPhoneOptional")}>
             <input className="input" value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="+49 …" />
           </Field>
 
           {/* NEU: Anschrift */}
           <div className="grid gap-4">
-            <Field label="Straße & Nr.">
+            <Field label={t("booking.fieldStreet")}>
               <input
                 className="input"
                 value={street}
                 onChange={(e)=>setStreet(e.target.value)}
-                placeholder="z. B. Spangerstraße 9"
+                placeholder={t("booking.placeholderStreet")}
               />
             </Field>
-            <Field label="PLZ">
+            <Field label={t("booking.fieldZip")}>
               <input
                 className="input"
                 value={zip}
@@ -468,85 +495,84 @@ export default function Booking() {
                 placeholder="27476"
               />
             </Field>
-            <Field label="Ort">
+            <Field label={t("booking.fieldCity")}>
               <input
                 className="input"
                 value={city}
                 onChange={(e)=>setCity(e.target.value)}
-                placeholder="Cuxhaven"
+                placeholder={t("booking.placeholderCity")}
               />
             </Field>
-            <Field label="Land">
+            <Field label={t("booking.fieldCountry")}>
               <input
                 className="input"
                 value={country}
                 onChange={(e)=>setCountry(e.target.value)}
-                placeholder="Deutschland"
+                placeholder={t("booking.placeholderCountry")}
               />
             </Field>
           </div>
 
           <div>
-            <Field label="Nachricht (optional)">
-              <textarea className="input" rows={3} value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="z.B. Ankunftszeit, Fragen …" />
+            <Field label={t("booking.fieldMessageOptional")}>
+              <textarea className="input" rows={3} value={message} onChange={(e)=>setMessage(e.target.value)} placeholder={t("booking.placeholderMessage")} />
             </Field>
           </div>
         </div>
       {/* Ergebnis */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
-          <p className="text-slate-600">Laden …</p>
+          <p className="text-slate-600">{t("booking.loading")}</p>
         ) : error ? (
           <p className="text-red-700">{error}</p>
         ) : nights <= 0 ? (
-          <p className="text-slate-600">Bitte ein gültiges Datum wählen (mindestens eine Nacht).</p>
+          <p className="text-slate-600">{t("booking.invalidNightCount")}</p>
         ) : calc ? (
           <div className="grid gap-4">
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold">Zusammenfassung</h2>
+              <h2 className="text-lg font-semibold">{t("booking.summaryTitle")}</h2>
               <dl className="space-y-1">
-                <SummaryItem label="Nächte" value={String(nights)} />
-                <SummaryItem label="Übernachtungen" value={fmt.format(calc.base.nightsTotal)} />
-                <SummaryItem label="Endreinigung" value={fmt.format(calc.base.cleaningFee)} />
-                <SummaryItem label="Kurtaxe (Erwachsene)" value={fmt.format(calc.tax.total)} />
+                <SummaryItem label={t("booking.summaryNights")} value={String(nights)} />
+                <SummaryItem label={t("booking.summaryStays")} value={fmt.format(calc.base.nightsTotal)} />
+                <SummaryItem label={t("booking.summaryCleaning")} value={fmt.format(calc.base.cleaningFee)} />
+                <SummaryItem label={t("booking.summaryTax")} value={fmt.format(calc.tax.total)} />
               </dl>
               <div className="mt-2 h-px bg-slate-200" />
               <dl>
-                <SummaryItem label="Gesamt" value={fmt.format(calc.grandTotal)} bold />
+                <SummaryItem label={t("booking.summaryTotal")} value={fmt.format(calc.grandTotal)} bold />
               </dl>
-              <p className="mt-2 text-xs text-slate-500">Kurtaxe ab 16 Jahren. Saisonpreise inkl. USt., Kurtaxe nach Ortsrecht.</p>
+              <p className="mt-2 text-xs text-slate-500">{t("booking.summaryHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <h3 className="font-medium">Hinweise</h3>
+              <h3 className="font-medium">{t("booking.notesTitle")}</h3>
               <ul className="list-disc pl-5 text-sm text-slate-700">
-                <li><strong>Ende exkl.:</strong> Die Abreise-Nacht ist nicht berechnet.</li>
-                <li>In definierten Saisons gilt der jeweilige Nachtpreis. Außerhalb gilt der Standardpreis.</li>
-                <li>Kurtaxe je Nacht pro zahlender Person (≥16) gemäß Kurtaxe-Band.</li>
+                <li>{t("booking.noteEndExclusive")}</li>
+                <li>{t("booking.noteSeasonRates")}</li>
+                <li>{t("booking.noteTax")}</li>
               </ul>
             </div>
             <div>
               <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 open:bg-white">
-                <summary className="cursor-pointer select-none font-medium">Preis je Nacht anzeigen</summary>
+                <summary className="cursor-pointer select-none font-medium">{t("booking.nightlyDetails")}</summary>
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <caption className="sr-only">
-                      Preisaufschlüsselung pro Nacht für den ausgewählten Zeitraum
-                      inklusive Tarif, Kurtaxe und Gesamtsumme
+                      {t("booking.nightlyCaption")}
                     </caption>
                     <thead>
                       <tr className="text-left text-slate-600">
-                        <th scope="col" className="py-1 pr-3">Datum</th>
-                        <th scope="col" className="py-1 pr-3">Tarif</th>
-                        <th scope="col" className="py-1 pr-3 text-right">Preis / Nacht</th>
-                        <th scope="col" className="py-1 pr-3 text-right">Kurtaxe / Nacht</th>
-                        <th scope="col" className="py-1 pr-3 text-right">Summe / Nacht</th>
+                        <th scope="col" className="py-1 pr-3">{t("booking.colDate")}</th>
+                        <th scope="col" className="py-1 pr-3">{t("booking.colRateType")}</th>
+                        <th scope="col" className="py-1 pr-3 text-right">{t("booking.colRatePerNight")}</th>
+                        <th scope="col" className="py-1 pr-3 text-right">{t("booking.colTaxPerNight")}</th>
+                        <th scope="col" className="py-1 pr-3 text-right">{t("booking.colTotalPerNight")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {nightlyBreakdown.map((n) => (
                         <tr key={n.date} className="border-t border-slate-200">
-                          <td className="py-1 pr-3">{new Date(n.date+"T00:00:00").toLocaleDateString("de-DE")}</td>
+                          <td className="py-1 pr-3">{new Date(n.date+"T00:00:00").toLocaleDateString(locale)}</td>
                           <td className="py-1 pr-3">{n.label}</td>
                           <td className="py-1 pr-3 text-right">{fmt.format(n.rate)}</td>
                           <td className="py-1 pr-3 text-right">{fmt.format(n.tax)}</td>
@@ -554,19 +580,19 @@ export default function Booking() {
                         </tr>
                       ))}
                       <tr className="border-t-2 border-slate-300 font-semibold">
-                        <td className="py-1 pr-3" colSpan={4}>Summe Übernachtungen</td>
+                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowStayTotal")}</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.base.nightsTotal)}</td>
                       </tr>
                       <tr>
-                        <td className="py-1 pr-3" colSpan={4}>Endreinigung</td>
+                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowCleaning")}</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.base.cleaningFee)}</td>
                       </tr>
                       <tr>
-                        <td className="py-1 pr-3" colSpan={4}>Kurtaxe (gesamt)</td>
+                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowTaxTotal")}</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.tax.total)}</td>
                       </tr>
                       <tr className="border-t-2 border-slate-300 font-semibold">
-                        <td className="py-1 pr-3" colSpan={4}>Gesamt</td>
+                        <td className="py-1 pr-3" colSpan={4}>{t("booking.rowGrandTotal")}</td>
                         <td className="py-1 pr-3 text-right">{fmt.format(calc.grandTotal)}</td>
                       </tr>
                     </tbody>
@@ -576,20 +602,20 @@ export default function Booking() {
             </div>
           </div>
         ) : (
-          <p className="text-slate-600">Preis konnte nicht berechnet werden.</p>
+          <p className="text-slate-600">{t("booking.priceCalcError")}</p>
         )}
       </div>
       {avail === "checking" && (
-        <p className="text-sm text-slate-500">Verfügbarkeit wird geprüft …</p>
+        <p className="text-sm text-slate-500">{t("booking.availabilityChecking")}</p>
       )}
       {avail === "available" && (
-        <p className="text-sm text-green-700">Zeitraum ist aktuell verfügbar.</p>
+        <p className="text-sm text-green-700">{t("booking.availabilityAvailable")}</p>
       )}
       {avail === "unavailable" && (
-        <p className="text-sm text-red-700">Zeitraum ist leider bereits belegt.</p>
+        <p className="text-sm text-red-700">{t("booking.availabilityUnavailable")}</p>
       )}
       {nights > 0 && nights < MIN_NIGHTS && (
-        <p className="text-sm text-amber-700">Mindestaufenthalt: {MIN_NIGHTS} Nächte.</p>
+        <p className="text-sm text-amber-700">{t("booking.minStay", { nights: MIN_NIGHTS })}</p>
       )}
 
       <div className="space-y-2">
@@ -598,7 +624,7 @@ export default function Booking() {
           className="rounded-xl bg-[color:var(--ocean,#0e7490)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60"
           disabled={!calc || nights <= 0 || nights < MIN_NIGHTS || submitting}
         >
-          {submitting ? "Sende …" : "Anfrage senden"}
+          {submitting ? t("booking.submitSending") : t("booking.submit")}
         </button>
       </div>
       </form>
@@ -616,8 +642,8 @@ export default function Booking() {
             type="button"
             onClick={() => setNotice(null)}
             className="rounded bg-white/20 px-2 py-1 text-sm hover:bg-white/30"
-            aria-label="Hinweis schließen"
-            title="Hinweis schließen"
+            aria-label={t("booking.closeNotice")}
+            title={t("booking.closeNotice")}
           >
             ✕
           </button>

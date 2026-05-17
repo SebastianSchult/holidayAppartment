@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getFirstPropertyLite, getPropertyLite, listSeasonsLite } from "../lib/publicPricingData";
+import { useLanguage, useT } from "../i18n/useLanguage";
 
 type Row = {
   id: string;
@@ -11,9 +12,11 @@ type Row = {
 };
 
 export default function Prices() {
+  const { locale } = useLanguage();
+  const t = useT();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [propertyName, setPropertyName] = useState<string>("Ferienwohnung");
+  const [propertyName, setPropertyName] = useState<string>(t("prices.defaultPropertyName"));
   const [currency, setCurrency] = useState<string>("EUR");
   const [defaultNightlyRate, setDefaultNightlyRate] = useState<number>(0);
   const [cleaningFee, setCleaningFee] = useState<number>(0);
@@ -59,7 +62,7 @@ export default function Prices() {
           }
         }
 
-        setPropertyName(resolvedProp.name || "Ferienwohnung");
+        setPropertyName(resolvedProp.name || t("prices.defaultPropertyName"));
         setCurrency(resolvedProp.currency || "EUR");
         setDefaultNightlyRate(resolvedProp.defaultNightlyRate || 0);
         setCleaningFee(resolvedProp.cleaningFee || 0);
@@ -76,43 +79,43 @@ export default function Prices() {
           }))
         );
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Preise konnten nicht geladen werden.");
+        setError(e instanceof Error ? e.message : t("prices.errorLoad"));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [t]);
 
   const formatter = useMemo(
-    () => new Intl.NumberFormat("de-DE", { style: "currency", currency }),
-    [currency]
+    () => new Intl.NumberFormat(locale, { style: "currency", currency }),
+    [currency, locale]
   );
   const fmtDate = (iso: string) =>
-    new Date(iso + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    new Date(iso + "T00:00:00").toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
 
   return (
     <section className="space-y-8">
       <header className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">{propertyName} – Preise</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{t("prices.title", { propertyName })}</h1>
         <p className="mt-2 text-slate-600">
-          Transparente Saisonpreise &amp; Standardpreis. Endreinigung und Kurtaxe separat wie angegeben.
+          {t("prices.subtitle")}
         </p>
       </header>
 
       {/* Standardpreis & Endreinigung */}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-semibold">Standardpreis außerhalb von Saisons</h2>
-          <p className="mt-1 text-2xl font-bold">{formatter.format(defaultNightlyRate)} <span className="text-base font-normal text-slate-600">/ Nacht</span></p>
+          <h2 className="text-lg font-semibold">{t("prices.standardTitle")}</h2>
+          <p className="mt-1 text-2xl font-bold">{formatter.format(defaultNightlyRate)} <span className="text-base font-normal text-slate-600">{t("prices.perNight")}</span></p>
           <p className="mt-2 text-sm text-slate-600">
-            Gilt für Nächte, die in keine definierte Saison fallen.
+            {t("prices.standardHint")}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-semibold">Endreinigung</h2>
+          <h2 className="text-lg font-semibold">{t("prices.cleaningTitle")}</h2>
           <p className="mt-1 text-2xl font-bold">{formatter.format(cleaningFee)}</p>
           <p className="mt-2 text-sm text-slate-600">
-            Einmalig pro Aufenthalt. Kurtaxe nach lokaler Satzung ggf. zusätzlich.
+            {t("prices.cleaningHint")}
           </p>
         </div>
       </div>
@@ -120,30 +123,29 @@ export default function Prices() {
       {/* Saisonpreise */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b px-4 py-3">
-          <h2 className="text-lg font-semibold">Saisonpreise</h2>
+          <h2 className="text-lg font-semibold">{t("prices.seasonsTitle")}</h2>
         </div>
 
         {loading ? (
-          <div className="px-4 py-6 text-slate-600">Laden …</div>
+          <div className="px-4 py-6 text-slate-600">{t("prices.loading")}</div>
         ) : error ? (
           <div className="px-4 py-6 text-red-700">
             {error}
           </div>
         ) : rows.length === 0 ? (
-          <div className="px-4 py-6 text-slate-600">Noch keine Saisons erfasst.</div>
+          <div className="px-4 py-6 text-slate-600">{t("prices.empty")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <caption className="sr-only">
-                Saisonpreise für {propertyName} mit Zeitraum, Tarifname, Preis pro
-                Nacht und Mindestnächten
+                {t("prices.caption", { propertyName })}
               </caption>
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
-                  <Th>Zeitraum</Th>
-                  <Th>Name</Th>
-                  <Th className="text-right">Preis/Nacht</Th>
-                  <Th className="text-right">Min. Nächte</Th>
+                  <Th>{t("prices.colRange")}</Th>
+                  <Th>{t("prices.colName")}</Th>
+                  <Th className="text-right">{t("prices.colRate")}</Th>
+                  <Th className="text-right">{t("prices.colMinNights")}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -151,7 +153,7 @@ export default function Prices() {
                   <tr key={r.id} className="border-t">
                     <Td>
                       {fmtDate(r.startDate)} – {fmtDate(r.endDate)}
-                      <span className="ml-1 text-xs text-slate-500">(Ende exkl.)</span>
+                      <span className="ml-1 text-xs text-slate-500">{t("prices.rangeEndExclusive")}</span>
                     </Td>
                     <Td>{r.name}</Td>
                     <Td className="text-right">{formatter.format(r.nightlyRate)}</Td>
@@ -166,15 +168,15 @@ export default function Prices() {
 
       {/* CTA */}
       <div className="rounded-2xl bg-[color:var(--seafoam,#e0f2f1)] px-6 py-6 text-center md:py-8">
-        <h3 className="text-xl font-semibold">Fragen zum Zeitraum oder Preis?</h3>
+        <h3 className="text-xl font-semibold">{t("prices.ctaTitle")}</h3>
         <p className="mt-1 text-slate-700">
-          Prüfe die Verfügbarkeit und erhalte den Gesamtpreis direkt im nächsten Schritt.
+          {t("prices.ctaText")}
         </p>
         <a
           href="/book"
           className="mt-4 inline-flex items-center justify-center rounded-full bg-[color:var(--ocean,#0e7490)] px-5 py-2 text-white hover:opacity-90"
         >
-          Jetzt Verfügbarkeit prüfen
+          {t("prices.ctaButton")}
         </a>
       </div>
     </section>
