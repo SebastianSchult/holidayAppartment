@@ -1,9 +1,8 @@
-import { onAuthStateChanged } from 'firebase/auth';
-import type { User } from 'firebase/auth';
-import React from 'react';
-import { auth } from '../../lib/firebaseAuth';
-import { db } from '../../lib/firebaseDb';
-import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from "firebase/auth";
+import type { User } from "firebase/auth";
+import React from "react";
+import { auth } from "../../lib/firebaseAuth";
+import { getIsAdminRole } from "../../lib/authz";
 
 interface AuthCtx {
   user: User | null;
@@ -11,12 +10,12 @@ interface AuthCtx {
   isAdmin: boolean;
 }
 
-interface RoleDoc {
-  admin?: boolean;
-}
-
 // eslint-disable-next-line react-refresh/only-export-components
-export const AuthContext = React.createContext<AuthCtx>({ user: null, loading: true, isAdmin: false });
+export const AuthContext = React.createContext<AuthCtx>({
+  user: null,
+  loading: true,
+  isAdmin: false,
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
@@ -24,9 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = React.useState(false);
 
   React.useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (!u) {
+    const unsub = onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
+      if (!nextUser) {
         setIsAdmin(false);
       }
       setLoading(false);
@@ -36,37 +35,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     let cancelled = false;
+
     if (!user) {
       setIsAdmin(false);
       return;
     }
+
     (async () => {
       try {
-        const snap = await getDoc(doc(db, 'roles', user.uid));
-        if (cancelled) return;
-        const data = snap.data() as RoleDoc | undefined;
-        setIsAdmin(!!(data && data.admin === true));
+        const admin = await getIsAdminRole(user.uid);
+        if (!cancelled) {
+          setIsAdmin(admin);
+        }
       } catch {
-        if (cancelled) return;
-        setIsAdmin(false);
+        if (!cancelled) {
+          setIsAdmin(false);
+        }
       }
     })();
+
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  const ctxValue = React.useMemo(() => ({
-    user,
-    loading,
-    isAdmin,
-  }), [user, loading, isAdmin]);
-
-  return (
-    <AuthContext.Provider value={ctxValue}>
-      {children}
-    </AuthContext.Provider>
+  const value = React.useMemo(
+    () => ({ user, loading, isAdmin }),
+    [user, loading, isAdmin],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

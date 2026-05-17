@@ -11,10 +11,11 @@ This folder defines the baseline E2E strategy for the project.
   - happy-path booking request flow (form fill, submit, success feedback)
   - mail endpoint is stubbed in test for deterministic runs
 - `admin/`:
-  - planned critical admin workflow (currently disabled)
+  - unauthenticated access guard coverage (`/admin` redirects to `/admin/login`)
+  - critical workflow is tracked as `test.fixme` until dedicated admin fixtures are stable
 
-Current baseline executes public smoke tests and booking happy-path flow.
-Admin E2E remains intentionally disabled until test data/access are stabilized.
+Current baseline executes public smoke tests, booking happy-path flow, and admin guard redirect coverage.
+The full admin state-transition workflow remains `fixme` until test data/access are stabilized.
 
 ## Test Structure and Naming
 

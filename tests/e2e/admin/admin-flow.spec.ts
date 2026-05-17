@@ -1,12 +1,19 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-test.describe.skip("Admin flow", () => {
-  test("critical workflow (temporarily disabled)", async () => {
-    // Temporarily disabled until admin test data and access are stabilized.
-    // Scope when re-enabled:
-    // 1) Authenticate as dedicated admin test user.
-    // 2) Open admin dashboard.
-    // 3) Execute status change actions (approve/decline/cancel/delete).
-    // 4) Verify updated state in table/calendar.
+test.describe("Admin flow", () => {
+  test("unauthenticated users are redirected to admin login", async ({ page }) => {
+    await page.goto("/admin");
+    await expect(page).toHaveURL(/\/admin\/login$/);
+    await expect(page.getByLabel(/e-mail|email/i)).toBeVisible();
+    await expect(page.getByLabel(/passwort|password/i)).toBeVisible();
+  });
+
+  test.fixme("critical workflow with real admin user", async () => {
+    // Re-enable once dedicated admin test account and deterministic test fixtures are available.
+    // Scope:
+    // 1) authenticate as dedicated admin test user
+    // 2) open admin dashboard
+    // 3) execute approve/decline/cancel/delete transitions
+    // 4) verify table and calendar state updates
   });
 });
