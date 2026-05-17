@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
-  buildGalleryImagePath,
+  buildGallerySrcSet,
+  buildGalleryVariantPath,
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
 
@@ -68,7 +69,9 @@ export default function Gallery() {
             className="group relative z-0 overflow-hidden rounded-xl shadow-sm transition-transform duration-300 ease-out hover:z-20 hover:scale-[1.25] focus:outline-none focus-visible:z-20 focus-visible:scale-[1.25] focus-visible:ring-2 focus-visible:ring-[color:var(--ocean,#0e7490)]"
           >
             <img
-              src={buildGalleryImagePath(fileName)}
+              src={buildGalleryVariantPath(fileName, 640)}
+              srcSet={buildGallerySrcSet(fileName)}
+              sizes="(max-width: 768px) 48vw, (max-width: 1024px) 31vw, 24vw"
               alt={`Ferienwohnung Ansicht ${index + 1}`}
               className="aspect-[4/3] w-full object-cover"
               loading="lazy"
@@ -113,7 +116,9 @@ export default function Gallery() {
             onClick={(event) => event.stopPropagation()}
           >
             <img
-              src={buildGalleryImagePath(GALLERY_IMAGES[activeIndex])}
+              src={buildGalleryVariantPath(GALLERY_IMAGES[activeIndex], 1600)}
+              srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeIndex])}
+              sizes="(max-width: 768px) 92vw, (max-width: 1280px) 86vw, 1600px"
               alt={`Ferienwohnung Ansicht ${activeIndex + 1}`}
               className="max-h-[85vh] max-w-full rounded-lg object-contain"
               loading="eager"

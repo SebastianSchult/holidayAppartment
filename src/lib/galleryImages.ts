@@ -31,6 +31,39 @@ export const GALLERY_IMAGES = [
   "gallery-30.jpeg",
 ];
 
+const GALLERY_VARIANT_WIDTHS = [640, 1600] as const;
+
 export function buildGalleryImagePath(fileName: string) {
   return `/img/${encodeURIComponent(fileName)}`;
+}
+
+function getFileBase(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex === -1) {
+    return fileName;
+  }
+  return fileName.slice(0, dotIndex);
+}
+
+function getFileExt(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex === -1) {
+    return "";
+  }
+  return fileName.slice(dotIndex);
+}
+
+export function buildGalleryVariantPath(
+  fileName: string,
+  width: (typeof GALLERY_VARIANT_WIDTHS)[number],
+) {
+  const base = getFileBase(fileName);
+  const ext = getFileExt(fileName);
+  return buildGalleryImagePath(`${base}-${width}${ext}`);
+}
+
+export function buildGallerySrcSet(fileName: string) {
+  return GALLERY_VARIANT_WIDTHS.map((width) =>
+    `${buildGalleryVariantPath(fileName, width)} ${width}w`,
+  ).join(", ");
 }
