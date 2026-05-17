@@ -60,7 +60,8 @@ Die App soll:
 - `src/lib/`
   Enthält Infrastruktur- und Fachlogik:
   - Firebase-Konfiguration (`firebaseApp`, `firebaseDb`, `firebaseAuth`)
-  - Datenzugriff (`db.ts`)
+  - Datenzugriff über modulare DB-Schicht (`db/` mit `bookings`, `inventory`, `holds`, `properties`, `mail`; Fassade via `db.ts`)
+  - zentrale Zugriffs-/Rollenlogik (`authz.ts`)
   - Preislogik (`pricing.ts`)
   - Schema-Definitionen (`schemas.ts`)
   - Bildpfade / Assets / öffentliche Preisdaten
@@ -87,7 +88,7 @@ Die App soll:
   - Kurtaxe
   - Buchungsanfragen
   - Kalender / Belegung
-- Zugriff auf Admin-Bereiche läuft über Auth + Rollenprüfung (`roles/{uid}.admin`) und Firestore-Regeln.
+- Zugriff auf Admin-Bereiche läuft über Auth + Rollenprüfung (`roles/{uid}.admin`) und Membership-Checks in `properties/{propertyId}/members/{uid}`; die Prüfungen sind in `src/lib/authz.ts` zentralisiert.
 
 ---
 
