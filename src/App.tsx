@@ -2,6 +2,8 @@ import { NavBar } from "./components/NavBar";
 import { AppRoutes } from "./app/routes";
 import { useLocation } from "react-router-dom";
 import { useT } from "./i18n/useLanguage";
+import { CookieBanner } from "./components/CookieBanner";
+import { ConsentAnalytics } from "./components/ConsentAnalytics";
 
 export default function App() {
   const t = useT();
@@ -40,6 +42,9 @@ export default function App() {
           <a href="/datenschutz" className="mx-2 underline">{t("app.footer.privacy")}</a>
         </div>
       </footer>
+
+      <CookieBanner />
+      <ConsentAnalytics />
     </div>
   );
 }

@@ -19,6 +19,24 @@ export const de: TranslationDictionary = {
   "app.footer.imprint": "Impressum",
   "app.footer.privacy": "Datenschutz",
 
+  "cookie.title": "Cookie-Einstellungen",
+  "cookie.description":
+    "Wir nutzen notwendige Cookies und bieten dir optionale Kategorien für Statistik und Marketing an.",
+  "cookie.alwaysActive": "Immer aktiv",
+  "cookie.categoryNecessary.title": "Notwendige Cookies",
+  "cookie.categoryNecessary.description":
+    "Erforderlich für Basisfunktionen wie Seitennavigation und Sicherheit.",
+  "cookie.categoryStatistics.title": "Statistik",
+  "cookie.categoryStatistics.description":
+    "Hilft uns zu verstehen, wie Besucher die Website nutzen, damit wir sie verbessern können.",
+  "cookie.categoryMarketing.title": "Marketing",
+  "cookie.categoryMarketing.description":
+    "Erlaubt personalisierte Inhalte und Werbe-Messung über Drittanbieter.",
+  "cookie.privacyLink": "Mehr in der Datenschutzerklärung",
+  "cookie.essentialOnly": "Nur notwendige",
+  "cookie.saveSelection": "Auswahl speichern",
+  "cookie.acceptAll": "Alle akzeptieren",
+
   "routes.loading": "Laden …",
 
   "home.heroAlt": "Meerblick",
@@ -197,6 +215,23 @@ export const en: TranslationDictionary = {
   "app.footer.bookNow": "Book now",
   "app.footer.imprint": "Legal notice",
   "app.footer.privacy": "Privacy",
+  "cookie.title": "Cookie settings",
+  "cookie.description":
+    "We use essential cookies and offer optional categories for statistics and marketing.",
+  "cookie.alwaysActive": "Always active",
+  "cookie.categoryNecessary.title": "Essential cookies",
+  "cookie.categoryNecessary.description":
+    "Required for basic features such as site navigation and security.",
+  "cookie.categoryStatistics.title": "Statistics",
+  "cookie.categoryStatistics.description":
+    "Helps us understand how visitors use the website so we can improve it.",
+  "cookie.categoryMarketing.title": "Marketing",
+  "cookie.categoryMarketing.description":
+    "Allows personalized content and ad measurement through third parties.",
+  "cookie.privacyLink": "Read more in the privacy policy",
+  "cookie.essentialOnly": "Essential only",
+  "cookie.saveSelection": "Save selection",
+  "cookie.acceptAll": "Accept all",
 
   "routes.loading": "Loading …",
 

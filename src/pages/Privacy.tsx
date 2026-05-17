@@ -11,7 +11,9 @@ export default function Privacy() {
           <div className="mb-6">
             <h2 className="text-xl font-bold mb-2">Cookies</h2>
             <p>
-              Unsere Website verwendet Cookies, um grundlegende Funktionen sicherzustellen.
+              Unsere Website verwendet notwendige Cookies, um grundlegende Funktionen sicherzustellen.
+              Optional können Statistik- und Marketing-Cookies aktiviert werden. Diese Einwilligung
+              kann jederzeit durch das Löschen der Browserdaten neu gesetzt werden.
             </p>
           </div>
         </li>
