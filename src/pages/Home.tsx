@@ -4,11 +4,13 @@ import {
   buildGalleryVariantPath,
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
+import { useT } from "../i18n/useLanguage";
 
 const SLIDESHOW_INTERVAL_MS = 9000;
 const SLIDESHOW_TRANSITION_MS = 3200;
 
 export default function Home() {
+  const t = useT();
   const totalSlides = GALLERY_IMAGES.length;
   const [activeSlide, setActiveSlide] = useState(0);
   const [isSliding, setIsSliding] = useState(false);
@@ -61,7 +63,7 @@ export default function Home() {
             src="/hero/cuxhaven-hero-1280.jpg"
             srcSet="/hero/cuxhaven-hero-640.jpg 640w, /hero/cuxhaven-hero-960.jpg 960w, /hero/cuxhaven-hero-1280.jpg 1280w"
             sizes="100vw"
-            alt="Meerblick"
+            alt={t("home.heroAlt")}
             className="h-full w-full object-cover"
             width={1280}
             height={960}
@@ -76,30 +78,29 @@ export default function Home() {
       <div className="relative z-10 mx-auto -mt-16 max-w-6xl px-4">
         <div className="air-card air-shadow-tier rounded-[14px] bg-white p-4 md:p-6">
           <h1 className="text-[28px] font-bold leading-[1.43] text-[color:var(--color-ink)]">
-            Ferienwohnung Antjes Ankerplatz
+            {t("home.title")}
           </h1>
           <p className="mt-1 text-[color:var(--color-body)]">
-            Maritimer Komfort, 2000 m bis zur Nordsee – jetzt Verfügbarkeit
-            prüfen.
+            {t("home.subtitle")}
           </p>
 
           <form className="mt-4 grid gap-3 md:grid-cols-4">
             <label className="md:col-span-1">
-              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">Anreise</span>
+              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">{t("home.arrival")}</span>
               <input
                 className="input"
                 type="date"
               />
             </label>
             <label className="md:col-span-1">
-              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">Abreise</span>
+              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">{t("home.departure")}</span>
               <input
                 className="input"
                 type="date"
               />
             </label>
             <label className="md:col-span-1">
-              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">Gäste</span>
+              <span className="mb-1 block text-sm text-[color:var(--color-muted)]">{t("home.guests")}</span>
               <input
                 className="input"
                 type="number"
@@ -112,20 +113,20 @@ export default function Home() {
               type="button"
               onClick={() => location.assign("/book")}
             >
-              Verfügbarkeit prüfen
+              {t("home.checkAvailability")}
             </button>
           </form>
         </div>
       </div>
 
       <section className="mt-8 bg-[color:var(--color-surface-soft)] py-8 md:mt-12 md:py-12">
-        <h2 className="sr-only">Ausstattungsmerkmale</h2>
+        <h2 className="sr-only">{t("home.featuresTitle")}</h2>
         <div className="mx-auto grid max-w-6xl gap-4 px-4 md:grid-cols-4">
           {[
-            { t: "Strandnah", d: "20 Minuten zu Fuß" },
-            { t: "Kostenloses Parken", d: "Privatstellplatz" },
-            { t: "Haustiere erlaubt", d: "auf Anfrage" },
-            { t: "WLAN & Smart-TV", d: "inklusive" },
+            { t: t("home.featureBeach"), d: t("home.featureBeachDesc") },
+            { t: t("home.featureParking"), d: t("home.featureParkingDesc") },
+            { t: t("home.featurePets"), d: t("home.featurePetsDesc") },
+            { t: t("home.featureWifi"), d: t("home.featureWifiDesc") },
           ].map((it) => (
             <article key={it.t} className="air-card rounded-[14px] bg-white p-4">
               <h3 className="text-base font-semibold text-[color:var(--color-ink)]">{it.t}</h3>
@@ -138,27 +139,22 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-4 py-10 md:py-12">
         <div className="air-card mb-6 rounded-[14px] bg-white p-5 md:p-6">
           <h2 className="text-[21px] font-bold leading-[1.43] text-[color:var(--color-ink)] md:text-[22px] md:font-medium md:leading-[1.18]">
-            Wohnungsbeschreibung
+            {t("home.descriptionTitle")}
           </h2>
           <p className="mt-2 text-[color:var(--color-body)]">
-            Antjes Ankerplatz ist eine gemütliche, maritime Ferienwohnung für
-            entspannte Tage an der Nordsee. Die Wohnung bietet einen hellen
-            Wohnbereich, eine gut ausgestattete Küche und komfortable
-            Schlafmöglichkeiten für Paare und Familien.
+            {t("home.descriptionP1")}
           </p>
           <p className="mt-2 text-[color:var(--color-body)]">
-            Dank der strandnahen Lage, eigenem Stellplatz und kurzer Wege zu
-            Einkaufsmöglichkeiten ist sie ein idealer Ausgangspunkt für
-            Erholung, Spaziergänge und Ausflüge rund um Cuxhaven.
+            {t("home.descriptionP2")}
           </p>
         </div>
 
         <div className="mb-5">
           <h2 className="text-[21px] font-bold leading-[1.43] text-[color:var(--color-ink)] md:text-[22px] md:font-medium md:leading-[1.18]">
-            Bildergalerie
+            {t("home.galleryTitle")}
           </h2>
           <p className="mt-1 text-[color:var(--color-muted)]">
-            Die Bilder laufen automatisch von rechts nach links durch.
+            {t("home.galleryHint")}
           </p>
         </div>
 
@@ -174,7 +170,7 @@ export default function Home() {
                 src={buildGalleryVariantPath(GALLERY_IMAGES[activeSlide], 1600)}
                 srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeSlide])}
                 sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
-                alt={`Ferienwohnung Ansicht ${activeSlide + 1}`}
+                alt={t("home.galleryAlt", { index: activeSlide + 1 })}
                 className="h-full w-full object-cover"
                 loading="eager"
                 decoding="async"
@@ -190,7 +186,7 @@ export default function Home() {
                 src={buildGalleryVariantPath(GALLERY_IMAGES[nextSlide], 1600)}
                 srcSet={buildGallerySrcSet(GALLERY_IMAGES[nextSlide])}
                 sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
-                alt={`Ferienwohnung Ansicht ${nextSlide + 1}`}
+                alt={t("home.galleryAlt", { index: nextSlide + 1 })}
                 className="h-full w-full object-cover"
                 loading="lazy"
                 decoding="async"
@@ -198,7 +194,7 @@ export default function Home() {
             </picture>
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
             <div className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
-              Bild {activeSlide + 1} von {totalSlides}
+              {t("home.galleryCount", { current: activeSlide + 1, total: totalSlides })}
             </div>
           </div>
         </div>

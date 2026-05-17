@@ -93,6 +93,7 @@ export const BookingSchema = z.object({
     name: z.string().min(1),
     email: z.string().email(),
     phone: z.string().optional().default(""),
+    language: z.enum(["de", "en"]).optional().default("de"),
     address: AddressSchema.optional().default({}),
   }),
   message: z.string().optional().default(""),

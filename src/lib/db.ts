@@ -42,6 +42,7 @@ async function sendAdminActionMail(
         adults: booking.adults,
         children: booking.children,
         contact: booking.contact,
+        language: booking.contact.language ?? "de",
         message: booking.message ?? "",
         status: booking.status,
         propertyName,
