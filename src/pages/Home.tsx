@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   buildGalleryImagePath,
-  buildGallerySrcSet,
   GALLERY_IMAGES,
 } from "../lib/galleryImages";
 
@@ -170,16 +169,6 @@ export default function Home() {
               }`}
               style={{ transitionDuration: `${SLIDESHOW_TRANSITION_MS}ms` }}
             >
-              <source
-                type="image/avif"
-                srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeSlide], "avif")}
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
-              />
-              <source
-                type="image/webp"
-                srcSet={buildGallerySrcSet(GALLERY_IMAGES[activeSlide], "webp")}
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
-              />
               <img
                 src={buildGalleryImagePath(GALLERY_IMAGES[activeSlide])}
                 alt={`Ferienwohnung Ansicht ${activeSlide + 1}`}
@@ -194,16 +183,6 @@ export default function Home() {
               }`}
               style={{ transitionDuration: `${SLIDESHOW_TRANSITION_MS}ms` }}
             >
-              <source
-                type="image/avif"
-                srcSet={buildGallerySrcSet(GALLERY_IMAGES[nextSlide], "avif")}
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
-              />
-              <source
-                type="image/webp"
-                srcSet={buildGallerySrcSet(GALLERY_IMAGES[nextSlide], "webp")}
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
-              />
               <img
                 src={buildGalleryImagePath(GALLERY_IMAGES[nextSlide])}
                 alt={`Ferienwohnung Ansicht ${nextSlide + 1}`}
